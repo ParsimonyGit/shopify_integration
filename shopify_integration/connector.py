@@ -1,7 +1,5 @@
 import json
 
-from shopify import Refund
-
 import frappe
 from erpnext.accounts.doctype.sales_invoice.sales_invoice import make_sales_return
 from erpnext.erpnext_integrations.utils import validate_webhooks_request
@@ -238,11 +236,7 @@ def create_sales_return(shopify_order_id, shopify_financial_status, sales_invoic
 	"""
 
 	shopify_settings = frappe.get_single("Shopify Settings")
-	session = shopify_settings.get_shopify_session()
-
-	Refund.activate_session(session)
-	refunds = Refund.find(order_id=shopify_order_id)
-	Refund.clear_session()
+	refunds = shopify_settings.get_refunds(order_id=shopify_order_id)
 
 	refund_dates = [refund.processed_at or refund.created_at for refund in refunds
 		if refund.processed_at or refund.created_at]

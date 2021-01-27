@@ -4,8 +4,6 @@
 
 from collections import defaultdict
 
-from shopify import Order
-
 import frappe
 from erpnext.controllers.accounts_controller import get_accounting_entry
 from frappe.model.document import Document
@@ -16,8 +14,6 @@ from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log imp
 
 
 class ShopifyPayout(Document):
-	settings = frappe.get_single("Shopify Settings")
-
 	def on_submit(self):
 		"""
 		On submit of a Payout, do the following:
@@ -35,16 +31,18 @@ class ShopifyPayout(Document):
 
 	def update_cancelled_shopify_orders(self):
 		doctypes = ["Delivery Note", "Sales Invoice", "Sales Order"]
-
-		session = self.settings.get_shopify_session()
-		Order.activate_session(session)
+		settings = frappe.get_single("Shopify Settings")
 
 		for transaction in self.transactions:
 			if not transaction.source_order_id:
 				continue
 
-			shopify_order = Order.find(cint(transaction.source_order_id))
-			if not shopify_order or not shopify_order.cancelled_at:
+			shopify_orders = settings.get_orders(cint(transaction.source_order_id))
+			if not shopify_orders:
+				continue
+
+			shopify_order = shopify_orders[0]
+			if not shopify_order.cancelled_at:
 				continue
 
 			for doctype in doctypes:
@@ -74,8 +72,6 @@ class ShopifyPayout(Document):
 					make_shopify_log(status="Error", exception=e)
 
 				transaction.db_set(doctype_field, None)
-
-		Order.clear_session()
 
 	def create_sales_returns(self):
 		transactions = [transaction for transaction in self.transactions

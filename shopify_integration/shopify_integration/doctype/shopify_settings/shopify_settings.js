@@ -1,4 +1,4 @@
-// Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
+// Copyright (c) 2021, Parsimony LLC and Contributors
 // License: GNU General Public License v3. See license.txt
 
 frappe.provide("erpnext_integrations.shopify_settings");
@@ -58,6 +58,8 @@ frappe.ui.form.on("Shopify Settings", {
 				callback: function (r) {
 					if (r.message) {
 						frappe.msgprint(__("Product sync has been queued. This may take a few minutes."));
+					} else {
+						frappe.msgprint(__("Something went wrong while trying to sync products. Please check the latest Shopify logs."))
 					}
 				}
 			})
@@ -70,6 +72,8 @@ frappe.ui.form.on("Shopify Settings", {
 				callback: function (r) {
 					if (r.message) {
 						frappe.msgprint(__("Payout sync has been queued. This may take a few minutes."));
+					} else {
+						frappe.msgprint(__("Something went wrong while trying to sync payouts. Please check the latest Shopify logs."))
 					}
 				}
 			})

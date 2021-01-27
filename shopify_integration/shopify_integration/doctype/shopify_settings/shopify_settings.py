@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
-# Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and contributors
+# Copyright (c) 2021, Parsimony LLC and contributors
 # For license information, please see license.txt
 
-import contextlib
-from shopify import Session, Webhook
+from shopify.collection import PaginatedCollection, PaginatedIterator
+from shopify.resources import Order, Payouts, Product, Refund, Transactions, Webhook
+from shopify.session import Session as ShopifySession
 
 import frappe
 from erpnext.erpnext_integrations.utils import get_webhook_address
 from frappe import _
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 from frappe.model.document import Document
-
 from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log import make_shopify_log
 
 
@@ -20,18 +20,49 @@ class ShopifySettings(Document):
 		"orders/fulfilled", "orders/cancelled"]
 
 	def get_shopify_session(self, temp=False):
-		if not self.enable_shopify:
-			# a no-op session manager in case Shopify is disabled
-			return contextlib.suppress()
-
 		args = (self.shopify_url, self.api_version, self.get_password("password"))
 		if temp:
-			return Session.temp(*args)
-		return Session(*args)
+			return ShopifySession.temp(*args)
+		return ShopifySession(*args)
+
+	def get_resources(self, resource, *args, **kwargs):
+		# TODO: figure out a way to nicely handle limits;
+		# currently, shopify's PaginatedIterator ignores limits during retrieval
+
+		with self.get_shopify_session(temp=True):
+			resources = resource.find(*args, **kwargs)
+
+			if isinstance(resources, PaginatedCollection):
+				# Shopify's API limits responses to 50 per page;
+				# we keep calling to retrieve all the resource documents
+				paged_resources = PaginatedIterator(resources)
+				return [resource for page in paged_resources for resource in page]
+			else:
+				# Shopify's API returns instance objects instead of collections
+				# for single-result responses
+				return [resources]
+
+	def get_orders(self, *args, **kwargs):
+		return self.get_resources(Order, *args, **kwargs)
+
+	def get_payouts(self, *args, **kwargs):
+		return self.get_resources(Payouts, *args, **kwargs)
+
+	def get_payout_transactions(self, *args, **kwargs):
+		return self.get_resources(Transactions, *args, **kwargs)
+
+	def get_products(self, *args, **kwargs):
+		return self.get_resources(Product, *args, **kwargs)
+
+	def get_refunds(self, *args, **kwargs):
+		return self.get_resources(Refund, *args, **kwargs)
+
+	def get_webhooks(self, *args, **kwargs):
+		return self.get_resources(Webhook, *args, **kwargs)
 
 	def validate(self):
 		if self.enable_shopify:
-			setup_custom_fields()
+			setup_custom_fields()  # TODO: move setup to after install?
 			self.validate_access_credentials()
 
 		if not frappe.conf.developer_mode:
@@ -51,21 +82,17 @@ class ShopifySettings(Document):
 			self.unregister_webhooks()
 
 	def register_webhooks(self):
-		session = self.get_shopify_session()
-
 		for topic in self.webhook_topics:
-			Webhook.activate_session(session)
-			if Webhook.find(topic=topic):
+			if self.get_webhooks(topic=topic):
 				continue
 
-			webhook = Webhook.create({
-				"topic": topic,
-				"address": get_webhook_address(connector_name="shopify_connection",
-					method="store_request_data"),
-				"format": "json"
-			})
-
-			Webhook.clear_session()
+			with self.get_shopify_session(temp=True):
+				webhook = Webhook.create({
+					"topic": topic,
+					"address": get_webhook_address(connector_name="shopify_connection",
+						method="store_request_data"),
+					"format": "json"
+				})
 
 			if webhook.is_valid():
 				self.append("webhooks", {
@@ -77,26 +104,26 @@ class ShopifySettings(Document):
 					exception=webhook.errors.full_messages(), rollback=True)
 
 	def unregister_webhooks(self):
-		session = self.get_shopify_session()
-
 		deleted_webhooks = []
 		for d in self.webhooks:
-			Webhook.activate_session(session)
-
-			if not Webhook.exists(d.webhook_id):
-				deleted_webhooks.append(d)
-				continue
+			with self.get_shopify_session(temp=True):
+				if not Webhook.exists(d.webhook_id):
+					deleted_webhooks.append(d)
+					continue
 
 			try:
-				webhook = Webhook.find(d.webhook_id)
-				webhook.destroy()
+				existing_webhooks = self.get_webhooks(d.webhook_id)
 			except Exception as e:
 				make_shopify_log(status="Error", exception=e, rollback=True)
-				frappe.log_error(message=e, title="Shopify Webhooks Deletion Issue")
-			else:
-				deleted_webhooks.append(d)
-			finally:
-				Webhook.clear_session()
+				continue
+
+			for webhook in existing_webhooks:
+				try:
+					webhook.destroy()
+				except Exception as e:
+					make_shopify_log(status="Error", exception=e, rollback=True)
+				else:
+					deleted_webhooks.append(d)
 
 		for d in deleted_webhooks:
 			self.remove(d)

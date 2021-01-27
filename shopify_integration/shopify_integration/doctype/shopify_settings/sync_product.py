@@ -1,5 +1,3 @@
-from shopify import Product, PaginatedIterator
-
 import frappe
 from erpnext import get_default_company
 from frappe import _
@@ -21,50 +19,42 @@ WEIGHT_UOM_MAP = {
 
 @frappe.whitelist()
 def sync_products_from_shopify():
-	shopify_settings = frappe.get_single("Shopify Settings")
-	if not shopify_settings.enable_shopify:
-		return
+	"""
+	Pull and sync products from Shopify, including variants
+	"""
 
-	session = shopify_settings.get_shopify_session()
-	Product.activate_session(session)
+	if not frappe.db.get_single_value("Shopify Settings", "enable_shopify"):
+		return False
 
-	try:
-		shopify_items = PaginatedIterator(Product.find())
-	except Exception as e:
-		make_shopify_log(status="Error", exception=e, rollback=True)
-	else:
-		frappe.enqueue(method=sync_item_from_shopify, queue='long', is_async=True,
-			**{"shopify_items": shopify_items, "shopify_settings": shopify_settings})
-	finally:
-		Product.clear_session()
-
+	frappe.enqueue(method=sync_items_from_shopify, queue='long', is_async=True)
 	return True
 
 
-def sync_item_from_shopify(shopify_items, shopify_settings):
-	session = shopify_settings.get_shopify_session()
-	Product.activate_session(session)
-
-	for page in shopify_items:
-		for shopify_item in page:
-			make_item(shopify_item.to_dict())
-
-	Product.clear_session()
-
-
-def make_item(shopify_item):
+def sync_items_from_shopify():
 	shopify_settings = frappe.get_single("Shopify Settings")
+
+	try:
+		shopify_items = shopify_settings.get_products(status="active")
+	except Exception as e:
+		make_shopify_log(status="Error", exception=e, rollback=True)
+		return
+
+	for shopify_item in shopify_items:
+		make_item(shopify_item.to_dict(), warehouse=shopify_settings.warehouse)
+
+
+def make_item(shopify_item, warehouse):
 	add_item_weight(shopify_item)
 
 	if has_variants(shopify_item):
 		attributes = create_attribute(shopify_item)
-		create_item(shopify_item, shopify_settings.warehouse, 1, attributes)
-		create_item_variants(shopify_item, shopify_settings.warehouse, attributes)
+		create_item(shopify_item, warehouse, has_variant=True, attributes=attributes)
+		create_item_variants(shopify_item, warehouse, attributes=attributes)
 	else:
 		variants = shopify_item.get('variants', [])
 		if len(variants) > 0:
 			shopify_item["variant_id"] = variants[0]["id"]
-		create_item(shopify_item, shopify_settings.warehouse)
+		create_item(shopify_item, warehouse)
 
 
 def add_item_weight(shopify_item):
@@ -129,7 +119,7 @@ def set_new_attribute_values(item_attr, values):
 			})
 
 
-def create_item(shopify_item, warehouse, has_variant=0, attributes=None, variant_of=None):
+def create_item(shopify_item, warehouse, has_variant=False, attributes=None, variant_of=None):
 	item_dict = {
 		"doctype": "Item",
 		"shopify_product_id": shopify_item.get("product_id") or shopify_item.get("id"),

@@ -1,7 +1,5 @@
 from collections import defaultdict
 
-from shopify import Order, PaginatedIterator, Payouts, Transactions
-
 import frappe
 from frappe.utils import flt, getdate, now
 
@@ -18,7 +16,7 @@ def sync_payouts_from_shopify():
 	"""
 
 	if not frappe.db.get_single_value("Shopify Settings", "enable_shopify"):
-		return
+		return False
 
 	frappe.enqueue(method=create_shopify_payouts, queue='long', is_async=True)
 	return True
@@ -31,18 +29,13 @@ def get_payouts():
 	if shopify_settings.last_sync_datetime:
 		kwargs['date_min'] = shopify_settings.last_sync_datetime
 
-	session = shopify_settings.get_shopify_session()
-	Payouts.activate_session(session)
-
 	try:
-		payouts = PaginatedIterator(Payouts.find(**kwargs))
+		payouts = shopify_settings.get_payouts(**kwargs)
 	except Exception as e:
 		make_shopify_log(status="Payout Error", exception=e, rollback=True)
 		return []
 	else:
 		return payouts
-	finally:
-		Payouts.clear_session()
 
 
 def create_shopify_payouts():
@@ -51,34 +44,31 @@ def create_shopify_payouts():
 		return
 
 	shopify_settings = frappe.get_single("Shopify Settings")
-	session = shopify_settings.get_shopify_session()
 
-	for page in payouts:
-		for payout in page:
-			if frappe.db.exists("Shopify Payout", {"payout_id": payout.id}):
-				continue
+	for payout in payouts:
+		if frappe.db.exists("Shopify Payout", {"payout_id": payout.id}):
+			continue
 
-			payout_order_ids = []
-			try:
-				Transactions.activate_session(session)
-				payout_transactions = Transactions.find(payout_id=payout.id)
-			except Exception as e:
-				make_shopify_log(status="Payout Transactions Error", response_data=payout.to_dict(), exception=e)
-			else:
-				payout_order_ids = [transaction.source_order_id for transaction in payout_transactions
-					if transaction.source_order_id]
-			finally:
-				Transactions.clear_session()
+		payout_order_ids = []
+		try:
+			payout_transactions = shopify_settings.get_payout_transactions(payout_id=payout.id)
+		except Exception as e:
+			make_shopify_log(status="Payout Transactions Error", response_data=payout.to_dict(), exception=e)
+		else:
+			payout_order_ids = [transaction.source_order_id for transaction in payout_transactions
+				if transaction.source_order_id]
 
-			create_missing_orders(session, payout_order_ids)
-			payout_doc = create_or_update_shopify_payout(session, payout)
-			update_invoice_fees(payout_doc)
+		create_missing_orders(payout_order_ids)
+		payout_doc = create_or_update_shopify_payout(payout)
+		update_invoice_fees(payout_doc)
 
 	shopify_settings.last_sync_datetime = now()
 	shopify_settings.save()
 
 
-def create_missing_orders(session, shopify_order_ids):
+def create_missing_orders(shopify_order_ids):
+	settings = frappe.get_single("Shopify Settings")
+
 	for shopify_order_id in shopify_order_ids:
 		sales_order = get_shopify_document("Sales Order", shopify_order_id)
 		sales_invoice = get_shopify_document("Sales Invoice", shopify_order_id)
@@ -87,12 +77,11 @@ def create_missing_orders(session, shopify_order_ids):
 		if all([sales_order, sales_invoice, delivery_note]):
 			continue
 
-		Order.activate_session(session)
-		order = Order.find(shopify_order_id)
-		Order.clear_session()
-
-		if not order:
+		orders = settings.get_orders(shopify_order_id)
+		if not orders:
 			continue
+
+		order = orders[0]
 
 		# create an order, invoice and delivery, if missing
 		if not sales_order:
@@ -131,13 +120,12 @@ def update_invoice_fees(payout_doc):
 		invoice.submit()
 
 
-def create_or_update_shopify_payout(session, payout):
+def create_or_update_shopify_payout(payout):
 	"""
 	Create a Payout document from Shopify's Payout information.
 	If a payout exists, update that instead.
 
 	Args:
-		session (shopify.Session): The active Shopify client session.
 		payout (shopify.Payout): The Payout payload from Shopify
 
 	Returns:
@@ -145,6 +133,7 @@ def create_or_update_shopify_payout(session, payout):
 	"""
 
 	company = frappe.db.get_single_value("Shopify Settings", "company")
+	settings = frappe.get_single("Shopify Settings")
 
 	payout_doc = frappe.new_doc("Shopify Payout")
 	payout_doc.update({
@@ -158,14 +147,11 @@ def create_or_update_shopify_payout(session, payout):
 	})
 
 	try:
-		Transactions.activate_session(session)
-		payout_transactions = Transactions.find(payout_id=payout.id)
+		payout_transactions = settings.get_payout_transactions(payout_id=payout.id)
 	except Exception as e:
 		payout_doc.save()
 		make_shopify_log(status="Payout Transactions Error", response_data=payout.to_dict(), exception=e)
 		return payout_doc.name
-	finally:
-		Transactions.clear_session()
 
 	payout_doc.set("transactions", [])
 	for transaction in payout_transactions:
@@ -173,9 +159,10 @@ def create_or_update_shopify_payout(session, payout):
 
 		order_financial_status = None
 		if shopify_order_id:
-			Order.activate_session(session)
-			order = Order.find(shopify_order_id)
-			Order.clear_session()
+			orders = settings.get_orders(shopify_order_id)
+			if not orders:
+				continue
+			order = orders[0]
 			order_financial_status = frappe.unscrub(order.financial_status)
 
 		total_amount = -flt(transaction.amount) if transaction.type == "payout" else flt(transaction.amount)
