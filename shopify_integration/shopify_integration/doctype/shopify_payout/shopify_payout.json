@@ -1,0 +1,275 @@
+{
+ "autoname": "field:payout_id",
+ "creation": "2020-11-19 01:05:26.508232",
+ "doctype": "DocType",
+ "document_type": "System",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "payout_id",
+  "company",
+  "status",
+  "payout_date",
+  "cb_payout",
+  "amount",
+  "currency",
+  "sb_summary",
+  "adjustments_gross_amount",
+  "charges_gross_amount",
+  "refunds_gross_amount",
+  "reserved_funds_gross_amount",
+  "retried_payouts_gross_amount",
+  "cb_summary",
+  "adjustments_fee_amount",
+  "charges_fee_amount",
+  "refunds_fee_amount",
+  "reserved_funds_fee_amount",
+  "retried_payouts_fee_amount",
+  "amended_from",
+  "sb_transactions",
+  "transactions"
+ ],
+ "fields": [
+  {
+   "fieldname": "payout_id",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "in_list_view": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
+   "label": "Payout ID",
+   "no_copy": 1,
+   "read_only": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company",
+   "read_only": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_preview": 1,
+   "label": "Status",
+   "no_copy": 1,
+   "options": "Scheduled\nIn Transit\nPaid\nFailed\nCanceled",
+   "read_only": 1
+  },
+  {
+   "bold": 1,
+   "fieldname": "payout_date",
+   "fieldtype": "Date",
+   "label": "Payout Date",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb_payout",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "in_preview": 1,
+   "label": "Amount",
+   "no_copy": 1,
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "label": "Currency",
+   "options": "Currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sb_summary",
+   "fieldtype": "Section Break",
+   "label": "Summary"
+  },
+  {
+   "fieldname": "adjustments_gross_amount",
+   "fieldtype": "Currency",
+   "label": "Adjustments Gross Amount",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "charges_gross_amount",
+   "fieldtype": "Currency",
+   "label": "Charges Gross Amount",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "refunds_gross_amount",
+   "fieldtype": "Currency",
+   "label": "Refunds Gross Amount",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "reserved_funds_gross_amount",
+   "fieldtype": "Currency",
+   "label": "Reserved Funds Gross Amount",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "retried_payouts_gross_amount",
+   "fieldtype": "Currency",
+   "label": "Retried Payouts Gross Amount",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb_summary",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "adjustments_fee_amount",
+   "fieldtype": "Currency",
+   "label": "Adjustments Fee Amount",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "charges_fee_amount",
+   "fieldtype": "Currency",
+   "label": "Charges Fee Amount",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "refunds_fee_amount",
+   "fieldtype": "Currency",
+   "label": "Refunds Fee Amount",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "reserved_funds_fee_amount",
+   "fieldtype": "Currency",
+   "label": "Reserved Funds Fee Amount",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "retried_payouts_fee_amount",
+   "fieldtype": "Currency",
+   "label": "Retried Payouts Fee Amount",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Shopify Payout",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "sb_transactions",
+   "fieldtype": "Section Break",
+   "label": "Transactions"
+  },
+  {
+   "fieldname": "transactions",
+   "fieldtype": "Table",
+   "options": "Shopify Payout Transaction",
+   "read_only": 1
+  }
+ ],
+ "is_submittable": 1,
+ "modified": "2021-01-27 00:55:37.706988",
+ "modified_by": "Administrator",
+ "module": "Shopify Integration",
+ "name": "Shopify Payout",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "cancel": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "cancel": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts User",
+   "share": 1
+  },
+  {
+   "cancel": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales Master Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "cancel": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales User",
+   "share": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1,
+ "track_seen": 1,
+ "track_views": 1
+}

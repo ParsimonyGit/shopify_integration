@@ -1,0 +1,165 @@
+{
+ "creation": "2020-11-19 01:26:22.384447",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "transaction_id",
+  "processed_at",
+  "cb_transaction",
+  "transaction_type",
+  "sb_details",
+  "total_amount",
+  "fee",
+  "cb_details",
+  "net_amount",
+  "currency",
+  "sb_references",
+  "sales_order",
+  "sales_invoice",
+  "delivery_note",
+  "cb_references",
+  "source_type",
+  "source_id",
+  "source_order_financial_status",
+  "source_order_id",
+  "source_order_transaction_id"
+ ],
+ "fields": [
+  {
+   "fieldname": "transaction_id",
+   "fieldtype": "Data",
+   "label": "Transaction ID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "processed_at",
+   "fieldtype": "Datetime",
+   "label": "Processed Datetime",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb_transaction",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "transaction_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Transaction Type",
+   "options": "Charge\nRefund\nDispute\nReserve\nAdjustment\nCredit\nDebit\nPayout\nPayout Failure\nPayout Cancellation",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sb_details",
+   "fieldtype": "Section Break",
+   "label": "Transaction Details"
+  },
+  {
+   "fieldname": "total_amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Total Amount",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "fee",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Fee",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb_details",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "net_amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Net Amount",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "label": "Currency",
+   "options": "Currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sb_references",
+   "fieldtype": "Section Break",
+   "label": "References"
+  },
+  {
+   "fieldname": "sales_order",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Sales Order",
+   "options": "Sales Order",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sales_invoice",
+   "fieldtype": "Link",
+   "label": "Sales Invoice",
+   "options": "Sales Invoice",
+   "read_only": 1
+  },
+  {
+   "fieldname": "delivery_note",
+   "fieldtype": "Link",
+   "label": "Delivery Note",
+   "options": "Delivery Note",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb_references",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "source_type",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Source Type"
+  },
+  {
+   "fieldname": "source_id",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Source ID"
+  },
+  {
+   "fieldname": "source_order_financial_status",
+   "fieldtype": "Data",
+   "label": "Shopify Order Financial Status",
+   "read_only": 1
+  },
+  {
+   "fieldname": "source_order_id",
+   "fieldtype": "Data",
+   "label": "Shopify Order ID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "source_order_transaction_id",
+   "fieldtype": "Data",
+   "label": "Shopify Order Transaction ID",
+   "read_only": 1
+  }
+ ],
+ "istable": 1,
+ "modified": "2021-01-27 00:55:37.005799",
+ "modified_by": "Administrator",
+ "module": "Shopify Integration",
+ "name": "Shopify Payout Transaction",
+ "owner": "Administrator",
+ "permissions": [],
+ "quick_entry": 1,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1
+}

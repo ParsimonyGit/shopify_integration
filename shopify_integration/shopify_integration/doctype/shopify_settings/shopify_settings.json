@@ -1,0 +1,306 @@
+{
+ "creation": "2015-05-18 05:21:07.270859",
+ "doctype": "DocType",
+ "document_type": "System",
+ "engine": "InnoDB",
+ "field_order": [
+  "status_html",
+  "enable_shopify",
+  "shopify_url",
+  "column_break_4",
+  "app_type",
+  "last_sync_datetime",
+  "sb_auth",
+  "api_key",
+  "password",
+  "cb_auth",
+  "shared_secret",
+  "access_token",
+  "sb_webhook",
+  "webhooks",
+  "sb_company",
+  "company",
+  "cb_company",
+  "cost_center",
+  "sb_customer",
+  "default_customer",
+  "cb_customer",
+  "customer_group",
+  "sb_transactions",
+  "price_list",
+  "update_price_in_erpnext_price_list",
+  "cb_transactions",
+  "warehouse",
+  "sb_naming_series",
+  "sales_order_series",
+  "sync_delivery_note",
+  "sync_sales_invoice",
+  "cb_naming_series",
+  "delivery_note_series",
+  "sales_invoice_series",
+  "sb_tax_accounts",
+  "tax_account",
+  "shipping_account",
+  "cb_tax_accounts",
+  "cash_bank_account",
+  "payment_fee_account"
+ ],
+ "fields": [
+  {
+   "fieldname": "status_html",
+   "fieldtype": "HTML",
+   "label": "status html",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "enable_shopify",
+   "fieldtype": "Check",
+   "label": "Enable Shopify"
+  },
+  {
+   "description": "eg: frappe.myshopify.com",
+   "fieldname": "shopify_url",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Shop URL",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_4",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Private",
+   "fieldname": "app_type",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "App Type",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "last_sync_datetime",
+   "fieldtype": "Datetime",
+   "label": "Last Sync Datetime",
+   "read_only": 1
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "sb_auth",
+   "fieldtype": "Section Break",
+   "label": "Authentication"
+  },
+  {
+   "depends_on": "eval:doc.app_type==\"Private\"",
+   "fieldname": "api_key",
+   "fieldtype": "Data",
+   "label": "API Key"
+  },
+  {
+   "depends_on": "eval:doc.app_type==\"Private\"",
+   "fieldname": "password",
+   "fieldtype": "Password",
+   "label": "Password"
+  },
+  {
+   "fieldname": "cb_auth",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "shared_secret",
+   "fieldtype": "Data",
+   "label": "Shared Secret"
+  },
+  {
+   "fieldname": "access_token",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Access Token",
+   "read_only": 1
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "sb_webhook",
+   "fieldtype": "Section Break",
+   "label": "Webhooks Details"
+  },
+  {
+   "fieldname": "webhooks",
+   "fieldtype": "Table",
+   "label": "Webhooks",
+   "options": "Shopify Webhook Detail",
+   "read_only": 1
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "sb_company",
+   "fieldtype": "Section Break",
+   "label": "Company Defaults"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "For Company",
+   "options": "Company"
+  },
+  {
+   "fieldname": "cb_company",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "cost_center",
+   "fieldtype": "Link",
+   "label": "Cost Center",
+   "options": "Cost Center"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "sb_customer",
+   "fieldtype": "Section Break",
+   "label": "Customer Defaults"
+  },
+  {
+   "description": "If Shopify does not have a customer in the order, then while syncing the orders, the system will consider the default customer for the order",
+   "fieldname": "default_customer",
+   "fieldtype": "Link",
+   "label": "Default Customer",
+   "options": "Customer"
+  },
+  {
+   "fieldname": "cb_customer",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Customer Group will set to selected group while syncing customers from Shopify",
+   "fieldname": "customer_group",
+   "fieldtype": "Link",
+   "label": "Customer Group",
+   "options": "Customer Group"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "sb_transactions",
+   "fieldtype": "Section Break",
+   "label": "Transaction Defaults"
+  },
+  {
+   "fieldname": "price_list",
+   "fieldtype": "Link",
+   "label": "Price List",
+   "options": "Price List"
+  },
+  {
+   "default": "0",
+   "fieldname": "update_price_in_erpnext_price_list",
+   "fieldtype": "Check",
+   "label": "Update Price from Shopify To ERPNext Price List"
+  },
+  {
+   "fieldname": "cb_transactions",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Default Warehouse to to create Sales Order and Delivery Note",
+   "fieldname": "warehouse",
+   "fieldtype": "Link",
+   "label": "Warehouse",
+   "options": "Warehouse"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "sb_naming_series",
+   "fieldtype": "Section Break",
+   "label": "Naming Series"
+  },
+  {
+   "fieldname": "sales_order_series",
+   "fieldtype": "Select",
+   "label": "Sales Order Series"
+  },
+  {
+   "default": "0",
+   "fieldname": "sync_delivery_note",
+   "fieldtype": "Check",
+   "label": "Import Delivery Notes from Shopify on Shipment"
+  },
+  {
+   "default": "0",
+   "fieldname": "sync_sales_invoice",
+   "fieldtype": "Check",
+   "label": "Import Sales Invoice from Shopify if Payment is marked"
+  },
+  {
+   "fieldname": "cb_naming_series",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.sync_delivery_note==1",
+   "fieldname": "delivery_note_series",
+   "fieldtype": "Select",
+   "label": "Delivery Note Series"
+  },
+  {
+   "depends_on": "eval:doc.sync_sales_invoice==1",
+   "fieldname": "sales_invoice_series",
+   "fieldtype": "Select",
+   "label": "Sales Invoice Series"
+  },
+  {
+   "collapsible": 1,
+   "collapsible_depends_on": "eval:!doc.__islocal",
+   "fieldname": "sb_tax_accounts",
+   "fieldtype": "Section Break",
+   "label": "Account Defaults"
+  },
+  {
+   "fieldname": "tax_account",
+   "fieldtype": "Link",
+   "label": "Tax Account",
+   "options": "Account"
+  },
+  {
+   "fieldname": "shipping_account",
+   "fieldtype": "Link",
+   "label": "Shipping Account",
+   "options": "Account"
+  },
+  {
+   "fieldname": "cb_tax_accounts",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Cash Account will used for Sales Invoice creation",
+   "fieldname": "cash_bank_account",
+   "fieldtype": "Link",
+   "label": "Cash/Bank/Payout Account",
+   "options": "Account"
+  },
+  {
+   "fieldname": "payment_fee_account",
+   "fieldtype": "Link",
+   "label": "Payment Fee Account",
+   "options": "Account"
+  }
+ ],
+ "issingle": 1,
+ "modified": "2021-01-27 00:55:35.414257",
+ "modified_by": "Administrator",
+ "module": "Shopify Integration",
+ "name": "Shopify Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC"
+}
