@@ -25,7 +25,7 @@ def sync_payouts_from_shopify():
 def get_payouts():
 	shopify_settings = frappe.get_single("Shopify Settings")
 
-	kwargs = dict()
+	kwargs = {}
 	if shopify_settings.last_sync_datetime:
 		kwargs['date_min'] = shopify_settings.last_sync_datetime
 

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (c) 2021, Parsimony LLC and contributors
+# Copyright (c) 2021, Parsimony, LLC and contributors
 # For license information, please see license.txt
 
 from collections import defaultdict
@@ -98,12 +98,11 @@ class ShopifyPayout(Document):
 
 		# make payout cash entry
 		for transaction in self.transactions:
-			if transaction.transaction_type.lower() == "payout":
-				if transaction.total_amount:
-					account = get_tax_account_head("payout")
-					amount = flt(transaction.net_amount)
-					entry = get_accounting_entry(account=account, amount=amount)
-					entries.append(entry)
+			if transaction.total_amount and transaction.transaction_type.lower() == "payout":
+				account = get_tax_account_head("payout")
+				amount = flt(transaction.net_amount)
+				entry = get_accounting_entry(account=account, amount=amount)
+				entries.append(entry)
 
 		# get the list of transactions that need to be balanced
 		payouts_by_invoice = defaultdict(list)

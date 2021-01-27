@@ -142,9 +142,8 @@ def cancel_shopify_order(order, request_id=None):
 
 def validate_customer(order):
 	customer_id = order.get("customer", {}).get("id")
-	if customer_id:
-		if not frappe.db.get_value("Customer", {"shopify_customer_id": customer_id}, "name"):
-			create_customer(order.get("customer"))
+	if customer_id and not frappe.db.get_value("Customer", {"shopify_customer_id": customer_id}, "name"):
+		create_customer(order.get("customer"))
 
 
 def validate_item(order):

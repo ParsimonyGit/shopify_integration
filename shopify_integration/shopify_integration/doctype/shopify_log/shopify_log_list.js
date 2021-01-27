@@ -1,3 +1,5 @@
+/* global frappe, __ */
+
 frappe.listview_settings['Shopify Log'] = {
 	add_fields: ["status"],
 	get_indicator: function (doc) {

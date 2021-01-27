@@ -4,7 +4,7 @@ from frappe.utils import cstr
 
 
 def create_customer(shopify_customer):
-	import frappe.utils.nestedset
+	from frappe.utils.nestedset import get_root_of
 
 	shopify_settings = frappe.get_single("Shopify Settings")
 
@@ -23,7 +23,7 @@ def create_customer(shopify_customer):
 			"shopify_customer_id": shopify_customer.get("id"),
 			"sync_with_shopify": 1,
 			"customer_group": shopify_settings.customer_group,
-			"territory": frappe.utils.nestedset.get_root_of("Territory"),
+			"territory": get_root_of("Territory"),
 			"customer_type": _("Individual")
 		})
 		customer.flags.ignore_mandatory = True

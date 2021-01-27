@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (c) 2021, Parsimony LLC and contributors
+# Copyright (c) 2021, Parsimony, LLC and contributors
 # For license information, please see license.txt
 
 from shopify.collection import PaginatedCollection, PaginatedIterator
@@ -37,10 +37,10 @@ class ShopifySettings(Document):
 				# we keep calling to retrieve all the resource documents
 				paged_resources = PaginatedIterator(resources)
 				return [resource for page in paged_resources for resource in page]
-			else:
-				# Shopify's API returns instance objects instead of collections
-				# for single-result responses
-				return [resources]
+
+			# Shopify's API returns instance objects instead of collections
+			# for single-result responses
+			return [resources]
 
 	def get_orders(self, *args, **kwargs):
 		return self.get_resources(Order, *args, **kwargs)

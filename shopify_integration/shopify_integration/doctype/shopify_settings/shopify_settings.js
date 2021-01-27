@@ -1,4 +1,6 @@
-// Copyright (c) 2021, Parsimony LLC and Contributors
+/* global frappe, __ */
+
+// Copyright (c) 2021, Parsimony, LLC and Contributors
 // License: GNU General Public License v3. See license.txt
 
 frappe.provide("erpnext_integrations.shopify_settings");
@@ -33,12 +35,9 @@ frappe.ui.form.on("Shopify Settings", {
 			frm.toggle_reqd("sales_invoice_series", frm.doc.sync_sales_invoice);
 			frm.toggle_reqd("delivery_note_series", frm.doc.sync_delivery_note);
 
-			let base_shopify_url;
-			if (frappe.utils.is_url(frm.doc.shopify_url)) {
-				base_shopify_url = frm.doc.shopify_url
-			} else {
-				base_shopify_url = `//${frm.doc.shopify_url}`
-			}
+			const base_shopify_url = frappe.utils.is_url(frm.doc.shopify_url)
+				? frm.doc.shopify_url
+				: `//${frm.doc.shopify_url}`
 
 			frm.set_intro(`
 				Syncing with Shopify requires the following API permissions in your
@@ -81,8 +80,8 @@ frappe.ui.form.on("Shopify Settings", {
 	},
 
 	app_type: function (frm) {
-		frm.toggle_reqd("api_key", (frm.doc.app_type == "Private"));
-		frm.toggle_reqd("password", (frm.doc.app_type == "Private"));
+		frm.toggle_reqd("api_key", (frm.doc.app_type === "Private"));
+		frm.toggle_reqd("password", (frm.doc.app_type === "Private"));
 	}
 })
 
@@ -91,38 +90,38 @@ $.extend(erpnext_integrations.shopify_settings, {
 		frm.set_query("warehouse", function (doc) {
 			return {
 				filters: {
-					"company": doc.company,
-					"is_group": "No"
+					company: doc.company,
+					is_group: "No"
 				}
 			}
 		});
 
 		frm.set_query("tax_account", function (doc) {
 			return {
-				"query": "erpnext.controllers.queries.tax_account_query",
-				"filters": {
-					"account_type": ["Tax", "Chargeable", "Expense Account"],
-					"company": doc.company
+				query: "erpnext.controllers.queries.tax_account_query",
+				filters: {
+					account_type: ["Tax", "Chargeable", "Expense Account"],
+					company: doc.company
 				}
 			}
 		});
 
 		frm.set_query("shipping_account", function (doc) {
 			return {
-				"query": "erpnext.controllers.queries.tax_account_query",
-				"filters": {
-					"account_type": ["Tax", "Chargeable", "Expense Account"],
-					"company": doc.company
+				query: "erpnext.controllers.queries.tax_account_query",
+				filters: {
+					account_type: ["Tax", "Chargeable", "Expense Account"],
+					company: doc.company
 				}
 			}
 		});
 
 		frm.set_query("payment_fee_account", function (doc) {
 			return {
-				"query": "erpnext.controllers.queries.tax_account_query",
-				"filters": {
-					"account_type": ["Chargeable", "Expense Account"],
-					"company": doc.company
+				query: "erpnext.controllers.queries.tax_account_query",
+				filters: {
+					account_type: ["Chargeable", "Expense Account"],
+					company: doc.company
 				}
 			}
 		});
@@ -141,14 +140,14 @@ $.extend(erpnext_integrations.shopify_settings, {
 		frm.set_query("cost_center", function (doc) {
 			return {
 				filters: {
-					"company": doc.company,
-					"is_group": "No"
+					company: doc.company,
+					is_group: "No"
 				}
 			}
 		});
 
 		frm.set_query("price_list", function () {
-			return { filters: { "selling": 1 } }
+			return { filters: { selling: 1 } }
 		});
 	}
 })
