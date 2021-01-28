@@ -7,17 +7,15 @@ from shopify.resources import Order, Payouts, Product, Refund, Transactions, Web
 from shopify.session import Session as ShopifySession
 
 import frappe
-from erpnext.erpnext_integrations.utils import get_webhook_address
 from frappe import _
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 from frappe.model.document import Document
+
 from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log import make_shopify_log
 
 
 class ShopifySettings(Document):
 	api_version = "2021-01"
-	webhook_topics = ["orders/create", "orders/paid",
-		"orders/fulfilled", "orders/cancelled"]
 
 	def get_shopify_session(self, temp=False):
 		args = (self.shopify_url, self.api_version, self.get_password("password"))
@@ -82,15 +80,16 @@ class ShopifySettings(Document):
 			self.unregister_webhooks()
 
 	def register_webhooks(self):
-		for topic in self.webhook_topics:
+		from shopify_integration.webhook import get_webhook_address, SHOPIFY_WEBHOOK_TOPICS
+
+		for topic in SHOPIFY_WEBHOOK_TOPICS:
 			if self.get_webhooks(topic=topic):
 				continue
 
 			with self.get_shopify_session(temp=True):
 				webhook = Webhook.create({
 					"topic": topic,
-					"address": get_webhook_address(connector_name="shopify_connection",
-						method="store_request_data"),
+					"address": get_webhook_address(prefix="webhook", method="store_request_data"),
 					"format": "json"
 				})
 

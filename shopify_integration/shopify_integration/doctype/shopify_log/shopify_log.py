@@ -5,7 +5,6 @@
 import json
 
 import frappe
-from erpnext.erpnext_integrations.utils import get_webhook_address
 from frappe.model.document import Document
 
 
@@ -50,25 +49,6 @@ def get_message(exception):
 		message = "Something went wrong while syncing"
 
 	return message
-
-
-def dump_request_data(data, event="orders/create"):
-	event_mapper = {
-		"orders/create": get_webhook_address(connector_name='shopify_connection', method="sync_sales_order", exclude_uri=True),
-		"orders/paid": get_webhook_address(connector_name='shopify_connection', method="prepare_sales_invoice", exclude_uri=True),
-		"orders/fulfilled": get_webhook_address(connector_name='shopify_connection', method="prepare_delivery_note", exclude_uri=True),
-		"orders/cancelled": get_webhook_address(connector_name='shopify_connection', method="cancel_shopify_order", exclude_uri=True)
-	}
-
-	log = frappe.get_doc({
-		"doctype": "Shopify Log",
-		"request_data": json.dumps(data, indent=1),
-		"method": event_mapper[event]
-	}).insert(ignore_permissions=True)
-
-	frappe.db.commit()
-	frappe.enqueue(method=event_mapper[event], queue='short', timeout=300, is_async=True,
-		**{"order": data, "request_id": log.name})
 
 
 @frappe.whitelist()

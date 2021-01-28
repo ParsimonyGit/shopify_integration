@@ -1,25 +1,12 @@
-import json
-
 import frappe
 from erpnext.accounts.doctype.sales_invoice.sales_invoice import make_sales_return
-from erpnext.erpnext_integrations.utils import validate_webhooks_request
 from erpnext.selling.doctype.sales_order.sales_order import make_delivery_note, make_sales_invoice
 from frappe import _
 from frappe.utils import cint, cstr, flt, getdate, get_datetime, nowdate
 
-from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log import dump_request_data, make_shopify_log
+from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log import make_shopify_log
 from shopify_integration.shopify_integration.doctype.shopify_settings.sync_customer import create_customer
 from shopify_integration.shopify_integration.doctype.shopify_settings.sync_product import make_item
-
-
-@frappe.whitelist(allow_guest=True)
-@validate_webhooks_request("Shopify Settings", 'X-Shopify-Hmac-Sha256', secret_key='shared_secret')
-def store_request_data(order=None, event=None):
-	if frappe.request:
-		order = json.loads(frappe.request.data)
-		event = frappe.request.headers.get('X-Shopify-Topic')
-
-	dump_request_data(order, event)
 
 
 def sync_sales_order(order, request_id=None):
