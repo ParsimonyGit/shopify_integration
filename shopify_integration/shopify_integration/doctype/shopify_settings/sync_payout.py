@@ -113,7 +113,8 @@ def update_invoice_fees(payout_doc):
 				"charge_type": "Actual",
 				"account_head": get_tax_account_head("fee"),
 				"description": transaction.transaction_type,
-				"tax_amount": -flt(transaction.fee)
+				"tax_amount": -flt(transaction.fee),
+				"cost_center": frappe.db.get_single_value("Shopify Settings", "cost_center")
 			})
 
 		invoice.save()

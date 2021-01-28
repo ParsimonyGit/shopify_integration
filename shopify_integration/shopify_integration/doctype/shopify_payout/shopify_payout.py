@@ -5,12 +5,12 @@
 from collections import defaultdict
 
 import frappe
-from erpnext.controllers.accounts_controller import get_accounting_entry
 from frappe.model.document import Document
 from frappe.utils import cint, flt
 
 from shopify_integration.connector import create_sales_return, get_tax_account_head
 from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log import make_shopify_log
+from shopify_integration.utils import get_accounting_entry
 
 
 class ShopifyPayout(Document):
