@@ -1,4 +1,6 @@
-from collections import defaultdict
+# -*- coding: utf-8 -*-
+# Copyright (c) 2021, Parsimony, LLC and contributors
+# For license information, please see license.txt
 
 import frappe
 from frappe.utils import flt, getdate, now
@@ -7,13 +9,14 @@ from shopify_integration.fulfilments import create_shopify_delivery
 from shopify_integration.invoices import create_shopify_invoice
 from shopify_integration.orders import create_shopify_order
 from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log import make_shopify_log
-from shopify_integration.utils import get_shopify_document, get_tax_account_head
+from shopify_integration.utils import get_shopify_document
 
 
 @frappe.whitelist()
 def sync_payouts_from_shopify():
 	"""
-	Pull and sync payouts from Shopify Payments transactions with existing orders
+	Pull and sync payouts from Shopify Payments transactions.
+	Can be called manually, otherwise runs daily.
 	"""
 
 	if not frappe.db.get_single_value("Shopify Settings", "enable_shopify"):
@@ -23,23 +26,16 @@ def sync_payouts_from_shopify():
 	return True
 
 
-def get_payouts():
-	shopify_settings = frappe.get_single("Shopify Settings")
-
-	kwargs = {}
-	if shopify_settings.last_sync_datetime:
-		kwargs['date_min'] = shopify_settings.last_sync_datetime
-
-	try:
-		payouts = shopify_settings.get_payouts(**kwargs)
-	except Exception as e:
-		make_shopify_log(status="Payout Error", exception=e, rollback=True)
-		return []
-	else:
-		return payouts
-
-
 def create_shopify_payouts():
+	"""
+	Pull the latest payouts from Shopify and do the following:
+
+		- Create missing Sales Orders, Sales Invoices and Delivery Notes,
+			if enabled in Shopify Settings
+		- Create a Shopify Payout document with info on all transactions
+		- Update any invoices with fees accrued for each payout transaction
+	"""
+
 	payouts = get_payouts()
 	if not payouts:
 		return
@@ -60,14 +56,45 @@ def create_shopify_payouts():
 				if transaction.source_order_id]
 
 		create_missing_orders(payout_order_ids)
-		payout_doc = create_or_update_shopify_payout(payout)
-		update_invoice_fees(payout_doc)
+		payout_doc = create_shopify_payout(payout)
+		payout_doc.update_invoice_fees()
 
 	shopify_settings.last_sync_datetime = now()
 	shopify_settings.save()
 
 
+def get_payouts():
+	"""
+	Request Shopify API for the latest payouts
+
+	Returns:
+		list of shopify.Payout: The list of Shopify payouts, if any.
+	"""
+
+	shopify_settings = frappe.get_single("Shopify Settings")
+
+	kwargs = {}
+	if shopify_settings.last_sync_datetime:
+		kwargs['date_min'] = shopify_settings.last_sync_datetime
+
+	try:
+		payouts = shopify_settings.get_payouts(**kwargs)
+	except Exception as e:
+		make_shopify_log(status="Payout Error", exception=e, rollback=True)
+		return []
+	else:
+		return payouts
+
+
 def create_missing_orders(shopify_order_ids):
+	"""
+	Create missing Sales Orders, Sales Invoices and Delivery Notes,
+		if enabled in Shopify Settings.
+
+	Args:
+		shopify_order_ids (list of str): The Shopify order IDs to create documents against
+	"""
+
 	settings = frappe.get_single("Shopify Settings")
 
 	for shopify_order_id in shopify_order_ids:
@@ -95,37 +122,9 @@ def create_missing_orders(shopify_order_ids):
 				create_shopify_delivery(order.to_dict(), sales_order)
 
 
-def update_invoice_fees(payout_doc):
-	payouts_by_invoice = defaultdict(list)
-	for transaction in payout_doc.transactions:
-		if transaction.sales_invoice:
-			payouts_by_invoice[transaction.sales_invoice].append(transaction)
-
-	for invoice_id, order_transactions in payouts_by_invoice.items():
-		invoice = frappe.get_doc("Sales Invoice", invoice_id)
-		if invoice.docstatus != 0:
-			continue
-
-		for transaction in order_transactions:
-			if not transaction.fee:
-				continue
-
-			invoice.append("taxes", {
-				"charge_type": "Actual",
-				"account_head": get_tax_account_head("fee"),
-				"description": transaction.transaction_type,
-				"tax_amount": -flt(transaction.fee),
-				"cost_center": frappe.db.get_single_value("Shopify Settings", "cost_center")
-			})
-
-		invoice.save()
-		invoice.submit()
-
-
-def create_or_update_shopify_payout(payout):
+def create_shopify_payout(payout):
 	"""
-	Create a Payout document from Shopify's Payout information.
-	If a payout exists, update that instead.
+	Create a Shopify Payout document from Shopify's Payout information.
 
 	Args:
 		payout (shopify.Payout): The Payout payload from Shopify
@@ -153,7 +152,7 @@ def create_or_update_shopify_payout(payout):
 	except Exception as e:
 		payout_doc.save()
 		make_shopify_log(status="Payout Transactions Error", response_data=payout.to_dict(), exception=e)
-		return payout_doc.name
+		return payout_doc
 
 	payout_doc.set("transactions", [])
 	for transaction in payout_transactions:

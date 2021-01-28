@@ -94,23 +94,11 @@ setup_wizard_stages = "shopify_integration.setup.get_setup_stages"
 # Scheduled Tasks
 # ---------------
 
-# scheduler_events = {
-# 	"all": [
-# 		"shopify_integration.tasks.all"
-# 	],
-# 	"daily": [
-# 		"shopify_integration.tasks.daily"
-# 	],
-# 	"hourly": [
-# 		"shopify_integration.tasks.hourly"
-# 	],
-# 	"weekly": [
-# 		"shopify_integration.tasks.weekly"
-# 	]
-# 	"monthly": [
-# 		"shopify_integration.tasks.monthly"
-# 	]
-# }
+scheduler_events = {
+	"daily_long": [
+		"shopify_integration.payouts.sync_payouts_from_shopify"
+	]
+}
 
 # Testing
 # -------

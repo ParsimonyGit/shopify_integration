@@ -29,6 +29,36 @@ class ShopifyPayout(Document):
 		self.create_sales_returns()
 		self.create_payout_journal_entry()
 
+	def update_invoice_fees(self):
+		"""
+		Update any invoices with fees accrued for each payout transaction
+		"""
+
+		payouts_by_invoice = defaultdict(list)
+		for transaction in self.transactions:
+			if transaction.sales_invoice:
+				payouts_by_invoice[transaction.sales_invoice].append(transaction)
+
+		for invoice_id, order_transactions in payouts_by_invoice.items():
+			invoice = frappe.get_doc("Sales Invoice", invoice_id)
+			if invoice.docstatus != 0:
+				continue
+
+			for transaction in order_transactions:
+				if not transaction.fee:
+					continue
+
+				invoice.append("taxes", {
+					"charge_type": "Actual",
+					"account_head": get_tax_account_head("fee"),
+					"description": transaction.transaction_type,
+					"tax_amount": -flt(transaction.fee),
+					"cost_center": frappe.db.get_single_value("Shopify Settings", "cost_center")
+				})
+
+			invoice.save()
+			invoice.submit()
+
 	def update_cancelled_shopify_orders(self):
 		doctypes = ["Delivery Note", "Sales Invoice", "Sales Order"]
 		settings = frappe.get_single("Shopify Settings")
