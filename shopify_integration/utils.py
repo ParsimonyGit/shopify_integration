@@ -1,5 +1,5 @@
 import frappe
-from frappe.utils import _
+from frappe import _
 
 
 def get_accounting_entry(

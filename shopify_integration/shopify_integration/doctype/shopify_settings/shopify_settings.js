@@ -6,14 +6,12 @@
 frappe.provide("erpnext_integrations.shopify_settings");
 frappe.ui.form.on("Shopify Settings", {
 	onload: function (frm) {
-		frm.call({
-			method: "get_series",
-			callback: function (r) {
-				$.each(r.message, function (key, value) {
-					set_field_options(key, value);
-				});
-			}
+		frm.call("get_series").then(r => {
+			$.each(r.message, function (key, value) {
+				set_field_options(key, value);
+			});
 		});
+
 		erpnext_integrations.shopify_settings.setup_queries(frm);
 	},
 
