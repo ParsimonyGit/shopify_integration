@@ -14,20 +14,20 @@ SHOPIFY_WEBHOOK_TOPICS = [
 
 @frappe.whitelist(allow_guest=True)
 @validate_webhooks_request("Shopify Settings", 'X-Shopify-Hmac-Sha256', secret_key='shared_secret')
-def store_request_data(order=None, event=None):
+def store_request_data(data=None, event=None):
 	if frappe.request:
-		order = json.loads(frappe.request.data)
+		data = json.loads(frappe.request.data)
 		event = frappe.request.headers.get('X-Shopify-Topic')
 
-	dump_request_data(order, event)
+	dump_request_data(data, event)
 
 
 def dump_request_data(data, event="orders/create"):
 	event_mapper = {
-		"orders/create": get_webhook_address(prefix="connector", method="sync_sales_order", exclude_uri=True),
-		"orders/paid": get_webhook_address(prefix="connector", method="prepare_sales_invoice", exclude_uri=True),
-		"orders/fulfilled": get_webhook_address(prefix="connector", method="prepare_delivery_note", exclude_uri=True),
-		"orders/cancelled": get_webhook_address(prefix="connector", method="cancel_shopify_order", exclude_uri=True)
+		"orders/create": "shopify_integration.orders.sync_sales_order",
+		"orders/paid": "shopify_integration.invoices.prepare_sales_invoice",
+		"orders/fulfilled": "shopify_integration.fulfilments.prepare_delivery_note",
+		"orders/cancelled": "shopify_integration.orders.cancel_shopify_order",
 	}
 
 	log = frappe.get_doc({
@@ -41,18 +41,11 @@ def dump_request_data(data, event="orders/create"):
 		**{"order": data, "request_id": log.name})
 
 
-def get_webhook_address(prefix, method, exclude_uri=False):
-	endpoint = f"shopify_integration.webhook.{prefix}.{method}"
-
-	if exclude_uri:
-		return endpoint
-
+def get_webhook_url():
 	try:
 		url = frappe.request.url
 	except RuntimeError:
 		url = "http://localhost:8000"
 
 	uri = urlparse(url)
-	server_url = f'{uri.scheme}://{uri.netloc}/api/method/{endpoint}'
-
-	return server_url
+	return f'{uri.scheme}://{uri.netloc}/api/method/shopify_integration.webhooks.store_request_data'

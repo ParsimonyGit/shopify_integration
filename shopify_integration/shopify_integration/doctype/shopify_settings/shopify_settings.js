@@ -6,8 +6,8 @@
 frappe.provide("erpnext_integrations.shopify_settings");
 frappe.ui.form.on("Shopify Settings", {
 	onload: function (frm) {
-		frappe.call({
-			method: "shopify_integration.shopify_integration.doctype.shopify_settings.shopify_settings.get_series",
+		frm.call({
+			method: "get_series",
 			callback: function (r) {
 				$.each(r.message, function (key, value) {
 					set_field_options(key, value);
@@ -52,7 +52,7 @@ frappe.ui.form.on("Shopify Settings", {
 
 		frm.add_custom_button(__("Products"), function () {
 			frappe.call({
-				method: "shopify_integration.shopify_integration.doctype.shopify_settings.sync_product.sync_products_from_shopify",
+				method: "shopify_integration.products.sync_products_from_shopify",
 				freeze: true,
 				callback: function (r) {
 					if (r.message) {
@@ -66,7 +66,7 @@ frappe.ui.form.on("Shopify Settings", {
 
 		frm.add_custom_button(__("Payouts"), function () {
 			frappe.call({
-				method: "shopify_integration.shopify_integration.doctype.shopify_settings.sync_payout.sync_payouts_from_shopify",
+				method: "shopify_integration.payouts.sync_payouts_from_shopify",
 				freeze: true,
 				callback: function (r) {
 					if (r.message) {

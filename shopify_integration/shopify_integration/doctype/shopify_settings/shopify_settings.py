@@ -8,7 +8,6 @@ from shopify.session import Session as ShopifySession
 
 import frappe
 from frappe import _
-from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 from frappe.model.document import Document
 
 from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log import make_shopify_log
@@ -16,6 +15,21 @@ from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log imp
 
 class ShopifySettings(Document):
 	api_version = "2021-01"
+
+	@staticmethod
+	def get_series():
+		return {
+			"sales_order_series": frappe.get_meta("Sales Order").get_options("naming_series") or "SO-Shopify-",
+			"sales_invoice_series": frappe.get_meta("Sales Invoice").get_options("naming_series") or "SI-Shopify-",
+			"delivery_note_series": frappe.get_meta("Delivery Note").get_options("naming_series") or "DN-Shopify-"
+		}
+
+	def validate(self):
+		if self.enable_shopify:
+			self.validate_access_credentials()
+
+		if not frappe.conf.developer_mode:
+			self.update_webhooks()
 
 	def get_shopify_session(self, temp=False):
 		args = (self.shopify_url, self.api_version, self.get_password("password"))
@@ -58,14 +72,6 @@ class ShopifySettings(Document):
 	def get_webhooks(self, *args, **kwargs):
 		return self.get_resources(Webhook, *args, **kwargs)
 
-	def validate(self):
-		if self.enable_shopify:
-			setup_custom_fields()  # TODO: move setup to after install?
-			self.validate_access_credentials()
-
-		if not frappe.conf.developer_mode:
-			self.update_webhooks()
-
 	def validate_access_credentials(self):
 		if not self.shopify_url:
 			frappe.throw(_("Missing value for Shop URL"))
@@ -74,22 +80,19 @@ class ShopifySettings(Document):
 			frappe.throw(_("Missing value for Password"))
 
 	def update_webhooks(self):
-		if self.enable_shopify:
+		if self.enable_shopify and not self.webhooks:
 			self.register_webhooks()
-		else:
+		elif not self.enable_shopify:
 			self.unregister_webhooks()
 
 	def register_webhooks(self):
-		from shopify_integration.webhook import get_webhook_address, SHOPIFY_WEBHOOK_TOPICS
+		from shopify_integration.webhooks import get_webhook_url, SHOPIFY_WEBHOOK_TOPICS
 
 		for topic in SHOPIFY_WEBHOOK_TOPICS:
-			if self.get_webhooks(topic=topic):
-				continue
-
 			with self.get_shopify_session(temp=True):
 				webhook = Webhook.create({
 					"topic": topic,
-					"address": get_webhook_address(prefix="webhook", method="store_request_data"),
+					"address": get_webhook_url(),
 					"format": "json"
 				})
 
@@ -126,55 +129,3 @@ class ShopifySettings(Document):
 
 		for d in deleted_webhooks:
 			self.remove(d)
-
-
-@frappe.whitelist()
-def get_series():
-	return {
-		"sales_order_series": frappe.get_meta("Sales Order").get_options("naming_series") or "SO-Shopify-",
-		"sales_invoice_series": frappe.get_meta("Sales Invoice").get_options("naming_series") or "SI-Shopify-",
-		"delivery_note_series": frappe.get_meta("Delivery Note").get_options("naming_series") or "DN-Shopify-"
-	}
-
-
-def setup_custom_fields():
-	custom_fields = {
-		"Customer": [
-			dict(fieldname='shopify_customer_id', label='Shopify Customer Id',
-				fieldtype='Data', insert_after='series', read_only=1, print_hide=1)
-		],
-		"Supplier": [
-			dict(fieldname='shopify_supplier_id', label='Shopify Supplier Id',
-				fieldtype='Data', insert_after='supplier_name', read_only=1, print_hide=1)
-		],
-		"Address": [
-			dict(fieldname='shopify_address_id', label='Shopify Address Id',
-				fieldtype='Data', insert_after='fax', read_only=1, print_hide=1)
-		],
-		"Item": [
-			dict(fieldname='shopify_variant_id', label='Shopify Variant Id',
-				fieldtype='Data', insert_after='item_code', read_only=1, print_hide=1),
-			dict(fieldname='shopify_product_id', label='Shopify Product Id',
-				fieldtype='Data', insert_after='item_code', read_only=1, print_hide=1),
-			dict(fieldname='shopify_description', label='Shopify Description',
-				fieldtype='Text Editor', insert_after='description', read_only=1, print_hide=1),
-			dict(fieldname='disabled_on_shopify', label='Disabled on Shopify',
-				fieldtype='Check', insert_after='disabled', read_only=1, print_hide=1)
-		],
-		"Sales Order": [
-			dict(fieldname='shopify_order_id', label='Shopify Order Id',
-				fieldtype='Data', insert_after='title', read_only=1, print_hide=1)
-		],
-		"Delivery Note": [
-			dict(fieldname='shopify_order_id', label='Shopify Order Id',
-				fieldtype='Data', insert_after='title', read_only=1, print_hide=1),
-			dict(fieldname='shopify_fulfillment_id', label='Shopify Fulfillment Id',
-				fieldtype='Data', insert_after='title', read_only=1, print_hide=1)
-		],
-		"Sales Invoice": [
-			dict(fieldname='shopify_order_id', label='Shopify Order Id',
-				fieldtype='Data', insert_after='title', read_only=1, print_hide=1)
-		]
-	}
-
-	create_custom_fields(custom_fields)

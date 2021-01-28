@@ -3,10 +3,11 @@ from collections import defaultdict
 import frappe
 from frappe.utils import flt, getdate, now
 
-from shopify_integration.connector import (
-	create_shopify_delivery, create_shopify_invoice, create_shopify_order,
-	get_shopify_document, get_tax_account_head)
+from shopify_integration.fulfilments import create_shopify_delivery
+from shopify_integration.invoices import create_shopify_invoice
+from shopify_integration.orders import create_shopify_order
 from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log import make_shopify_log
+from shopify_integration.utils import get_shopify_document, get_tax_account_head
 
 
 @frappe.whitelist()

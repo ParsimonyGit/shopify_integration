@@ -11,6 +11,10 @@ app_color = "grey"
 app_email = "developers@parsimony.com"
 app_license = "MIT"
 
+# Setup Wizard
+# ------------
+setup_wizard_stages = "shopify_integration.setup.get_setup_stages"
+
 # Includes in <head>
 # ------------------
 

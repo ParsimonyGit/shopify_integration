@@ -1,4 +1,5 @@
 import frappe
+from frappe.utils import _
 
 
 def get_accounting_entry(
@@ -44,3 +45,44 @@ def get_debit_or_credit(amount, account):
 			return debit_field if amount > 0 else credit_field
 		else:
 			return debit_field if amount < 0 else credit_field
+
+
+def get_tax_account_head(tax_type):
+	tax_map = {
+		"payout": "cash_bank_account",
+		"refund": "cash_bank_account",
+		"tax": "tax_account",
+		"shipping": "shipping_account",
+		"fee": "payment_fee_account",
+		"adjustment": "payment_fee_account"
+	}
+
+	tax_field = tax_map.get(tax_type)
+	if not tax_field:
+		frappe.throw(_("Account not specified for '{0}'".format(frappe.unscrub(tax_type))))
+
+	tax_account = frappe.db.get_single_value("Shopify Settings", tax_field)
+	if not tax_account:
+		frappe.throw(_("Account not specified for '{0}'".format(frappe.unscrub(tax_field))))
+
+	return tax_account
+
+
+def get_shopify_document(doctype, shopify_order_id):
+	"""
+	Get a valid linked document for a Shopify order ID.
+
+	Args:
+		doctype (str): The doctype to retrieve
+		shopify_order_id (str): The Shopify order ID
+
+	Returns:
+		Document: The document for the Shopify order. Defaults to an
+			empty object if no document is found.
+	"""
+
+	name = frappe.db.get_value(doctype,
+		{"docstatus": ["<", 2], "shopify_order_id": shopify_order_id}, "name")
+	if name:
+		return frappe.get_doc(doctype, name)
+	return frappe._dict()

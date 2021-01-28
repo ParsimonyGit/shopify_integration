@@ -43,6 +43,30 @@ def sync_items_from_shopify():
 		make_item(shopify_item.to_dict())
 
 
+def validate_item(shopify_order):
+	for shopify_item in shopify_order.get("line_items"):
+		product_id = shopify_item.get("product_id")
+		if product_id and not frappe.db.exists("Item", {"shopify_product_id": product_id}):
+			make_item(shopify_item)
+
+		# Shopify somehow allows non-existent variants to be added to an order;
+		# for such cases, we force-create the item after creating the other variants
+		variant_id = shopify_item.get("variant_id")
+		if variant_id and not frappe.db.exists("Item", {"shopify_variant_id": variant_id}):
+			make_item(shopify_item)
+
+
+def get_item_code(shopify_item):
+	item_code = frappe.db.get_value("Item", {"shopify_variant_id": shopify_item.get("variant_id")}, "item_code")
+	if not item_code:
+		item_code = frappe.db.get_value("Item",
+			{"shopify_product_id": shopify_item.get("product_id") or shopify_item.get("id")}, "item_code")
+	if not item_code:
+		item_code = frappe.db.get_value("Item", {"item_name": shopify_item.get("title")}, "item_code")
+
+	return item_code
+
+
 def make_item(shopify_item):
 	warehouse = frappe.db.get_single_value("Shopify Settings", "warehouse")
 	add_item_weight(shopify_item)

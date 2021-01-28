@@ -3,6 +3,12 @@ from frappe import _
 from frappe.utils import cstr
 
 
+def validate_customer(shopify_order):
+	customer_id = shopify_order.get("customer", {}).get("id")
+	if customer_id and not frappe.db.get_value("Customer", {"shopify_customer_id": customer_id}, "name"):
+		create_customer(shopify_order.get("customer"))
+
+
 def create_customer(shopify_customer):
 	from frappe.utils.nestedset import get_root_of
 
