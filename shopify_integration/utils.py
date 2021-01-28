@@ -36,15 +36,14 @@ def get_debit_or_credit(amount, account):
 		if account_type in ("Receivable", "Payable"):
 			return debit_field if amount < 0 else credit_field
 		return debit_field if amount > 0 else credit_field
-	elif root_type == "Expense":
+	if root_type == "Expense":
 		return debit_field if amount < 0 else credit_field
-	elif root_type == "Income":
+	if root_type == "Income":
 		return debit_field if amount > 0 else credit_field
-	elif root_type in ("Equity", "Liability"):
+	if root_type in ("Equity", "Liability"):
 		if account_type in ("Receivable", "Payable"):
 			return debit_field if amount > 0 else credit_field
-		else:
-			return debit_field if amount < 0 else credit_field
+		return debit_field if amount < 0 else credit_field
 
 
 def get_tax_account_head(tax_type):
