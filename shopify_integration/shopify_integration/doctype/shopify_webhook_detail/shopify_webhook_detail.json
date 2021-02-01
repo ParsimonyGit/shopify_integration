@@ -1,0 +1,36 @@
+{
+ "creation": "2018-04-10 17:06:22.697427",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "webhook_id",
+  "method"
+ ],
+ "fields": [
+  {
+   "fieldname": "webhook_id",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Webhook ID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "method",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Method",
+   "read_only": 1
+  }
+ ],
+ "istable": 1,
+ "modified": "2021-01-27 00:55:38.950452",
+ "modified_by": "Administrator",
+ "module": "Shopify Integration",
+ "name": "Shopify Webhook Detail",
+ "owner": "Administrator",
+ "permissions": [],
+ "quick_entry": 1,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1
+}

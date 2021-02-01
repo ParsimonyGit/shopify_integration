@@ -11,6 +11,10 @@ app_color = "grey"
 app_email = "developers@parsimony.com"
 app_license = "MIT"
 
+# Setup Wizard
+# ------------
+setup_wizard_stages = "shopify_integration.setup.get_setup_stages"
+
 # Includes in <head>
 # ------------------
 
@@ -39,7 +43,7 @@ app_license = "MIT"
 
 # website user home page (by Role)
 # role_home_page = {
-#	"Role": "home_page"
+# 	"Role": "home_page"
 # }
 
 # Website user home page (by function)
@@ -84,29 +88,17 @@ app_license = "MIT"
 # 		"on_update": "method",
 # 		"on_cancel": "method",
 # 		"on_trash": "method"
-#	}
+# 	}
 # }
 
 # Scheduled Tasks
 # ---------------
 
-# scheduler_events = {
-# 	"all": [
-# 		"shopify_integration.tasks.all"
-# 	],
-# 	"daily": [
-# 		"shopify_integration.tasks.daily"
-# 	],
-# 	"hourly": [
-# 		"shopify_integration.tasks.hourly"
-# 	],
-# 	"weekly": [
-# 		"shopify_integration.tasks.weekly"
-# 	]
-# 	"monthly": [
-# 		"shopify_integration.tasks.monthly"
-# 	]
-# }
+scheduler_events = {
+	"daily_long": [
+		"shopify_integration.payouts.sync_payouts_from_shopify"
+	]
+}
 
 # Testing
 # -------
@@ -126,4 +118,3 @@ app_license = "MIT"
 # override_doctype_dashboards = {
 # 	"Task": "shopify_integration.task.get_dashboard_data"
 # }
-
