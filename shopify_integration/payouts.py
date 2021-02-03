@@ -153,7 +153,7 @@ def create_shopify_payout(payout):
 	try:
 		payout_transactions = settings.get_payout_transactions(payout_id=payout.id)
 	except Exception as e:
-		payout_doc.save()
+		payout_doc.save(ignore_permissions=True)
 		make_shopify_log(status="Payout Transactions Error", response_data=payout.to_dict(), exception=e)
 		return payout_doc
 
@@ -194,6 +194,6 @@ def create_shopify_payout(payout):
 			"source_order_transaction_id": transaction.source_order_transaction_id,
 		})
 
-	payout_doc.save()
+	payout_doc.save(ignore_permissions=True)
 	frappe.db.commit()
 	return payout_doc
