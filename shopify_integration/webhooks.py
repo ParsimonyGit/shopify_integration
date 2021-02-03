@@ -1,5 +1,4 @@
 import json
-from urllib.parse import urlparse
 
 import frappe
 from erpnext.erpnext_integrations.utils import validate_webhooks_request
@@ -42,10 +41,5 @@ def dump_request_data(data, event="orders/create"):
 
 
 def get_webhook_url():
-	try:
-		url = frappe.request.url
-	except RuntimeError:
-		url = "http://localhost:8000"
-
-	uri = urlparse(url)
-	return f'{uri.scheme}://{uri.netloc}/api/method/shopify_integration.webhooks.store_request_data'
+	# Shopify only supports HTTPS requests
+	return f'https://{frappe.request.host}/api/method/shopify_integration.webhooks.store_request_data'
