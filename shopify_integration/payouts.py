@@ -3,7 +3,7 @@
 # For license information, please see license.txt
 
 import frappe
-from frappe.utils import flt, getdate, now
+from frappe.utils import flt, get_datetime_str, get_first_day, getdate, now, today
 
 from shopify_integration.fulfilments import create_shopify_delivery
 from shopify_integration.invoices import create_shopify_invoice
@@ -76,6 +76,9 @@ def get_payouts():
 	kwargs = {}
 	if shopify_settings.last_sync_datetime:
 		kwargs['date_min'] = shopify_settings.last_sync_datetime
+	else:
+		# default to first day of current month for first sync
+		kwargs['date_min'] = get_datetime_str(get_first_day(today()))
 
 	try:
 		payouts = shopify_settings.get_payouts(**kwargs)
