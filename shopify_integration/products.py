@@ -26,7 +26,7 @@ def sync_products_from_shopify():
 	if not frappe.db.get_single_value("Shopify Settings", "enable_shopify"):
 		return False
 
-	frappe.enqueue(method=sync_items_from_shopify, queue='long', is_async=True)
+	frappe.enqueue(method=sync_items_from_shopify, queue="long", is_async=True)
 	return True
 
 
@@ -45,14 +45,25 @@ def sync_items_from_shopify():
 
 def validate_item(shopify_order):
 	for shopify_item in shopify_order.get("line_items"):
+		item_exists = True
+
 		product_id = shopify_item.get("product_id")
 		if product_id and not frappe.db.exists("Item", {"shopify_product_id": product_id}):
-			make_item(shopify_item)
+			item_exists = False
 
 		# Shopify somehow allows non-existent variants to be added to an order;
 		# for such cases, we force-create the item after creating the other variants
 		variant_id = shopify_item.get("variant_id")
 		if variant_id and not frappe.db.exists("Item", {"shopify_variant_id": variant_id}):
+			item_exists = False
+
+		# Shopify somehow also allows non-existent products to be added to an order;
+		# for such cases, we create the item using the line item"s title
+		line_item_title = shopify_item.get("title", "").strip()
+		if line_item_title and not frappe.db.exists("Item", {"item_code": line_item_title}):
+			item_exists = False
+
+		if not item_exists:
 			make_item(shopify_item)
 
 
@@ -60,7 +71,7 @@ def get_item_code(shopify_item):
 	item_code = frappe.db.get_value("Item", {"shopify_variant_id": shopify_item.get("variant_id")}, "item_code")
 	if not item_code:
 		item_code = frappe.db.get_value("Item",
-			{"shopify_product_id": shopify_item.get("product_id") or shopify_item.get("id")}, "item_code")
+			{"shopify_product_id": shopify_item.get("product_id")}, "item_code")
 	if not item_code:
 		item_code = frappe.db.get_value("Item", {"item_name": shopify_item.get("title")}, "item_code")
 
@@ -76,14 +87,14 @@ def make_item(shopify_item):
 		create_item(shopify_item, warehouse, has_variant=True, attributes=attributes)
 		create_item_variants(shopify_item, warehouse, attributes=attributes)
 	else:
-		variants = shopify_item.get('variants', [])
+		variants = shopify_item.get("variants", [])
 		if len(variants) > 0:
 			shopify_item["variant_id"] = variants[0]["id"]
 		create_item(shopify_item, warehouse)
 
 
 def add_item_weight(shopify_item):
-	variants = shopify_item.get('variants', [])
+	variants = shopify_item.get("variants", [])
 	if len(variants) > 0:
 		shopify_item["weight"] = variants[0]["weight"]
 		shopify_item["weight_unit"] = variants[0]["weight_unit"]
@@ -99,7 +110,7 @@ def has_variants(shopify_item):
 def create_attribute(shopify_item):
 	attribute = []
 	# shopify item dict
-	for attr in shopify_item.get('options'):
+	for attr in shopify_item.get("options"):
 		if not frappe.db.get_value("Item Attribute", attr.get("name"), "name"):
 			frappe.get_doc({
 				"doctype": "Item Attribute",
@@ -147,14 +158,14 @@ def set_new_attribute_values(item_attr, values):
 def create_item(shopify_item, warehouse, has_variant=False, attributes=None, variant_of=None):
 	item_dict = {
 		"doctype": "Item",
-		"shopify_product_id": shopify_item.get("product_id") or shopify_item.get("id"),
+		"shopify_product_id": shopify_item.get("product_id"),
 		"shopify_variant_id": shopify_item.get("variant_id"),
 		"disabled_on_shopify": not shopify_item.get("product_exists"),
 		"variant_of": variant_of,
 		"sync_with_shopify": 1,
 		"is_stock_item": 1,
-		"item_code": cstr(shopify_item.get("item_code")) or cstr(shopify_item.get("id")),
-		"item_name": shopify_item.get("title", '').strip(),
+		"item_code": cstr(shopify_item.get("item_code")) or shopify_item.get("title", "").strip(),
+		"item_name": shopify_item.get("title", "").strip(),
 		"description": shopify_item.get("body_html") or shopify_item.get("title"),
 		"shopify_description": shopify_item.get("body_html") or shopify_item.get("title"),
 		"item_group": get_item_group(shopify_item.get("product_type")),
@@ -176,7 +187,7 @@ def create_item(shopify_item, warehouse, has_variant=False, attributes=None, var
 
 	if not is_item_exists(item_dict, attributes, variant_of=variant_of):
 		item_details = get_item_details(shopify_item)
-		name = ''
+		name = ""
 
 		if not item_details:
 			new_item = frappe.get_doc(item_dict)
@@ -193,7 +204,7 @@ def create_item(shopify_item, warehouse, has_variant=False, attributes=None, var
 
 
 def create_item_variants(shopify_item, warehouse, attributes):
-	template_item = frappe.db.get_value("Item", filters={"shopify_product_id": shopify_item.get("id")},
+	template_item = frappe.db.get_value("Item", filters={"shopify_product_id": shopify_item.get("product_id")},
 		fieldname=["name", "stock_uom"], as_dict=True)
 
 	if template_item:
@@ -312,13 +323,13 @@ def get_supplier_group():
 
 
 def get_item_details(shopify_item):
-	item_details = frappe.db.get_value("Item", {"shopify_product_id": shopify_item.get("id")},
+	item_details = frappe.db.get_value("Item", {"shopify_product_id": shopify_item.get("product_id")},
 		["name", "stock_uom", "item_name"], as_dict=1)
 
 	if item_details:
 		return item_details
 
-	item_details = frappe.db.get_value("Item", {"shopify_variant_id": shopify_item.get("id")},
+	item_details = frappe.db.get_value("Item", {"shopify_variant_id": shopify_item.get("variant_id")},
 		["name", "stock_uom", "item_name"], as_dict=1)
 	return item_details
 
