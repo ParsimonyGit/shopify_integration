@@ -187,18 +187,18 @@ def create_item(shopify_item, warehouse, has_variant=False, attributes=None, var
 
 	if not is_item_exists(item_dict, attributes, variant_of=variant_of):
 		item_details = get_item_details(shopify_item)
-		name = ""
+		item_code = ""
 
 		if not item_details:
 			new_item = frappe.get_doc(item_dict)
 			new_item.insert(ignore_permissions=True, ignore_mandatory=True)
-			name = new_item.name
+			item_code = new_item.name
 
-		if not name:
-			name = item_details.name
+		if not item_code:
+			item_code = item_details.name
 
 		if not has_variant:
-			add_to_price_list(shopify_item, name)
+			add_to_price_list(shopify_item, item_code)
 
 		frappe.db.commit()
 
@@ -258,13 +258,13 @@ def get_sku(item):
 	return ""
 
 
-def add_to_price_list(item, name):
+def add_to_price_list(item, item_code):
 	shopify_settings = frappe.db.get_value("Shopify Settings", None, ["price_list", "update_price_in_erpnext_price_list"], as_dict=1)
 	if not shopify_settings.update_price_in_erpnext_price_list:
 		return
 
 	item_price_name = frappe.db.get_value("Item Price",
-		{"item_code": name, "price_list": shopify_settings.price_list}, "name")
+		{"item_code": item_code, "price_list": shopify_settings.price_list}, "name")
 
 	rate = 0
 	variants = item.get("variants", [])
@@ -277,7 +277,7 @@ def add_to_price_list(item, name):
 		frappe.get_doc({
 			"doctype": "Item Price",
 			"price_list": shopify_settings.price_list,
-			"item_code": name,
+			"item_code": item_code,
 			"price_list_rate": rate
 		}).insert()
 	else:
