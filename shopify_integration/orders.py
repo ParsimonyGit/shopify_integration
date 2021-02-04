@@ -42,6 +42,7 @@ def create_shopify_order(order, request_id=None):
 		})
 
 	if existing_so:
+		make_shopify_log(status="Skipped", response_data=order)
 		return frappe.get_doc("Sales Order", existing_so)
 
 	try:
