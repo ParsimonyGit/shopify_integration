@@ -146,9 +146,26 @@ def cancel_shopify_order(order, request_id=None):
 	doctypes = ["Delivery Note", "Sales Invoice", "Sales Order"]
 	for doctype in doctypes:
 		doc = get_shopify_document(doctype, cstr(order.get('id')))
-		if doc:
+		if not doc:
+			continue
+
+		# recursively cancel all Shopify documents
+		if doc.docstatus == 1:
 			try:
+				# ignore document links to Shopify Payout while cancelling
+				doc.flags.ignore_links = True
 				doc.cancel()
 			except Exception as e:
 				make_shopify_log(status="Error", response_data=order,
 					exception=e, rollback=True)
+
+		# update the financial status in all linked Shopify Payouts
+		payout_transactions = frappe.get_all("Shopify Payout Transaction",
+			filters={
+				frappe.scrub(doctype): doc.name,
+				"source_order_financial_status": ["!=", order.get("financial_status")]
+			})
+
+		for transaction in payout_transactions:
+			frappe.db.set_value("Shopify Payout Transaction", transaction.name,
+				"source_order_financial_status", frappe.unscrub(order.get("financial_status")))
