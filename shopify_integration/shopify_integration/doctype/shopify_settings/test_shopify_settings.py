@@ -30,33 +30,7 @@ class ShopifySettings(unittest.TestCase):
 		frappe.reload_doctype("Delivery Note")
 		frappe.reload_doctype("Sales Invoice")
 
-		self.setup_shopify()
-
-	def setup_shopify(self):
-		shopify_settings = frappe.get_single("Shopify Settings")
-		shopify_settings.update({
-			"app_type": "Private",
-			"shopify_url": "test.myshopify.com",
-			"api_key": secrets.token_urlsafe(nbytes=16),
-			"password": secrets.token_urlsafe(nbytes=16),
-			"shared_secret": secrets.token_urlsafe(nbytes=16),
-			"price_list": "_Test Price List",
-			"warehouse": "_Test Warehouse - _TC",
-			"cash_bank_account": "Cash - _TC",
-			"account": "Cash - _TC",
-			"customer_group": "_Test Customer Group",
-			"cost_center": "Main - _TC",
-			"enable_shopify": 0,
-			"sales_order_series": "SO-",
-			"sync_sales_invoice": 1,
-			"sales_invoice_series": "SINV-",
-			"sync_delivery_note": 1,
-			"delivery_note_series": "DN-",
-			"tax_account": "Legal Expenses - _TC",
-			"shipping_account": "Legal Expenses - _TC",
-			"cash_bank_account": "Legal Expenses - _TC",
-			"payment_fee_account": "Legal Expenses - _TC"
-		}).save(ignore_permissions=True)
+		setup_shopify()
 
 	def test_order(self):
 		# create customer
@@ -93,3 +67,29 @@ class ShopifySettings(unittest.TestCase):
 			where shopify_order_id = %s""", sales_order.shopify_order_id)[0][0]
 
 		self.assertEqual(delivery_note_count, len(shopify_order.get("order", {}).get("fulfillments")))
+
+
+def setup_shopify():
+	shopify_settings = frappe.get_single("Shopify Settings")
+	shopify_settings.update({
+		"app_type": "Private",
+		"shopify_url": "test.myshopify.com",
+		"api_key": secrets.token_urlsafe(nbytes=16),
+		"password": secrets.token_urlsafe(nbytes=16),
+		"shared_secret": secrets.token_urlsafe(nbytes=16),
+		"price_list": "_Test Price List",
+		"warehouse": "_Test Warehouse - _TC",
+		"account": "Cash - _TC",
+		"customer_group": "_Test Customer Group",
+		"cost_center": "Main - _TC",
+		"enable_shopify": 0,
+		"sales_order_series": "SO-",
+		"sync_sales_invoice": 1,
+		"sales_invoice_series": "SINV-",
+		"sync_delivery_note": 1,
+		"delivery_note_series": "DN-",
+		"cash_bank_account": "Cash - _TC",
+		"tax_account": "Legal Expenses - _TC",
+		"shipping_account": "Legal Expenses - _TC",
+		"payment_fee_account": "Legal Expenses - _TC"
+	}).save(ignore_permissions=True)
