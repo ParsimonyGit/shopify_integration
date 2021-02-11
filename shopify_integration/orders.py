@@ -9,7 +9,7 @@ from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log imp
 from shopify_integration.utils import get_shopify_document, get_tax_account_head
 
 
-def sync_sales_order(order, request_id=None):
+def create_shopify_documents(order, request_id=None):
 	"""
 	Create the following from a Shopify order:
 
