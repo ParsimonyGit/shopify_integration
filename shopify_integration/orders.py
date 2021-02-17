@@ -9,7 +9,7 @@ from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log imp
 from shopify_integration.utils import get_shopify_document, get_tax_account_head
 
 
-def sync_sales_order(order, request_id=None):
+def create_shopify_documents(order, request_id=None):
 	"""
 	Create the following from a Shopify order:
 
@@ -42,6 +42,7 @@ def create_shopify_order(order, request_id=None):
 		})
 
 	if existing_so:
+		make_shopify_log(status="Skipped", response_data=order)
 		return frappe.get_doc("Sales Order", existing_so)
 
 	try:

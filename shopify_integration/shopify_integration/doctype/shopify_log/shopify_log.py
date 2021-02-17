@@ -39,14 +39,12 @@ def make_shopify_log(status="Queued", response_data=None, exception=None, rollba
 
 
 def get_message(exception):
-	message = None
+	message = "Something went wrong while syncing"
 
 	if hasattr(exception, 'message'):
 		message = exception.message
 	elif hasattr(exception, '__str__'):
 		message = exception.__str__()
-	else:
-		message = "Something went wrong while syncing"
 
 	return message
 

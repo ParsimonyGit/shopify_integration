@@ -23,7 +23,7 @@ def store_request_data(data=None, event=None):
 
 def dump_request_data(data, event="orders/create"):
 	event_mapper = {
-		"orders/create": "shopify_integration.orders.sync_sales_order",
+		"orders/create": "shopify_integration.orders.create_shopify_documents",
 		"orders/paid": "shopify_integration.invoices.prepare_sales_invoice",
 		"orders/fulfilled": "shopify_integration.fulfilments.prepare_delivery_note",
 		"orders/cancelled": "shopify_integration.orders.cancel_shopify_order",
