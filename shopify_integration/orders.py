@@ -1,10 +1,6 @@
 import frappe
 from frappe.utils import cstr, flt, nowdate
 
-from shopify_integration.customers import validate_customer
-from shopify_integration.fulfilments import create_shopify_delivery
-from shopify_integration.invoices import create_shopify_invoice
-from shopify_integration.products import get_item_code, validate_item
 from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log import make_shopify_log
 from shopify_integration.utils import get_shopify_document, get_tax_account_head
 
@@ -24,6 +20,9 @@ def create_shopify_documents(order, request_id=None):
 			for this request. Defaults to None.
 	"""
 
+	from shopify_integration.fulfilments import create_shopify_delivery
+	from shopify_integration.invoices import create_shopify_invoice
+
 	frappe.set_user('Administrator')
 	frappe.flags.request_id = request_id
 	so = create_shopify_order(order, request_id)
@@ -33,6 +32,9 @@ def create_shopify_documents(order, request_id=None):
 
 
 def create_shopify_order(order, request_id=None):
+	from shopify_integration.customers import validate_customer
+	from shopify_integration.products import validate_item
+
 	frappe.flags.request_id = request_id
 
 	existing_so = frappe.db.get_value("Sales Order",
@@ -97,6 +99,8 @@ def create_sales_order(shopify_order, company=None):
 
 
 def get_order_items(order_items, shopify_settings):
+	from shopify_integration.products import get_item_code
+
 	items = []
 	for shopify_item in order_items:
 		item_code = get_item_code(shopify_item)

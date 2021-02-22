@@ -3,12 +3,13 @@ from erpnext.accounts.doctype.sales_invoice.sales_invoice import make_sales_retu
 from erpnext.selling.doctype.sales_order.sales_order import make_sales_invoice
 from frappe.utils import cint, cstr, flt, get_datetime, getdate
 
-from shopify_integration.orders import create_shopify_documents
 from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log import make_shopify_log
 from shopify_integration.utils import get_shopify_document, get_tax_account_head
 
 
 def prepare_sales_invoice(order, request_id=None):
+	from shopify_integration.orders import create_shopify_documents
+
 	frappe.set_user('Administrator')
 	frappe.flags.request_id = request_id
 
@@ -73,7 +74,7 @@ def create_sales_return(shopify_order_id, shopify_financial_status, sales_invoic
 
 	Returns:
 		SalesInvoice: The Sales Invoice return document.
-			If no refunds are found, return None.
+			If no refunds are found, returns None.
 	"""
 
 	shopify_settings = frappe.get_single("Shopify Settings")
@@ -84,7 +85,7 @@ def create_sales_return(shopify_order_id, shopify_financial_status, sales_invoic
 	if not refund_dates:
 		return
 
-	refund_datetime = min([get_datetime(date) for date in refund_dates]) if refund_dates else None
+	refund_datetime = min([get_datetime(date) for date in refund_dates])
 	if not refund_datetime:
 		return
 
