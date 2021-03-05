@@ -10,14 +10,14 @@ from shopify_integration.utils import get_shopify_document, get_tax_account_head
 def prepare_sales_invoice(order, request_id=None):
 	from shopify_integration.orders import create_shopify_documents
 
-	frappe.set_user('Administrator')
+	frappe.set_user("Administrator")
 	frappe.flags.request_id = request_id
 
 	try:
-		sales_order = get_shopify_document("Sales Order", cstr(order.get('id')))
+		sales_order = get_shopify_document("Sales Order", cstr(order.get("id")))
 		if not sales_order:
 			create_shopify_documents(order, request_id)
-			sales_order = get_shopify_document("Sales Order", cstr(order.get('id')))
+			sales_order = get_shopify_document("Sales Order", cstr(order.get("id")))
 
 		if sales_order:
 			create_sales_invoice(order, sales_order)
@@ -53,7 +53,7 @@ def create_sales_invoice(shopify_order, sales_order):
 		si.shopify_order_id = shopify_order.get("id")
 		si.shopify_order_number = shopify_order.get("name")
 		si.set_posting_time = 1
-		si.posting_date = getdate(shopify_order.get('created_at'))
+		si.posting_date = getdate(shopify_order.get("created_at"))
 		si.naming_series = shopify_settings.sales_invoice_series or "SI-Shopify-"
 		si.flags.ignore_mandatory = True
 		set_cost_center(si.items, shopify_settings.cost_center)

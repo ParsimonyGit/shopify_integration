@@ -23,7 +23,7 @@ def create_shopify_documents(order, request_id=None):
 	from shopify_integration.fulfilments import create_shopify_delivery
 	from shopify_integration.invoices import create_shopify_invoice
 
-	frappe.set_user('Administrator')
+	frappe.set_user("Administrator")
 	frappe.flags.request_id = request_id
 	so = create_shopify_order(order, request_id)
 	if so:
@@ -40,7 +40,7 @@ def create_shopify_order(order, request_id=None):
 	existing_so = frappe.db.get_value("Sales Order",
 		filters={
 			"docstatus": ["<", 2],
-			"shopify_order_id": cstr(order.get('id'))
+			"shopify_order_id": cstr(order.get("id"))
 		})
 
 	if existing_so:
@@ -145,12 +145,12 @@ def get_order_taxes(shopify_order, shopify_settings):
 
 
 def cancel_shopify_order(order, request_id=None):
-	frappe.set_user('Administrator')
+	frappe.set_user("Administrator")
 	frappe.flags.request_id = request_id
 
 	doctypes = ["Delivery Note", "Sales Invoice", "Sales Order"]
 	for doctype in doctypes:
-		doc = get_shopify_document(doctype, cstr(order.get('id')))
+		doc = get_shopify_document(doctype, cstr(order.get("id")))
 		if not doc:
 			continue
 

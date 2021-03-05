@@ -8,11 +8,11 @@ from shopify_integration.utils import get_shopify_document
 
 
 def prepare_delivery_note(order, request_id=None):
-	frappe.set_user('Administrator')
+	frappe.set_user("Administrator")
 	frappe.flags.request_id = request_id
 
 	try:
-		sales_order = get_shopify_document("Sales Order", cstr(order.get('id')))
+		sales_order = get_shopify_document("Sales Order", cstr(order.get("id")))
 		if sales_order:
 			create_delivery_notes(order, sales_order)
 		make_shopify_log(status="Success", response_data=order)

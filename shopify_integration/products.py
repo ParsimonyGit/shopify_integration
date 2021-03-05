@@ -31,6 +31,7 @@ def sync_products_from_shopify():
 
 
 def sync_items_from_shopify():
+	frappe.set_user("Administrator")
 	shopify_settings = frappe.get_single("Shopify Settings")
 
 	try:
