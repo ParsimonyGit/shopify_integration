@@ -18,7 +18,7 @@ def get_setup_stages(args=None):
 	]
 
 
-def setup_custom_fields():
+def setup_custom_fields(args):
 	custom_fields = {
 		"Customer": [
 			dict(fieldname='shopify_customer_id', label='Shopify Customer ID',
