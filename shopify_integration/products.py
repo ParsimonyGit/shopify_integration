@@ -156,6 +156,9 @@ def set_new_attribute_values(item_attr, values):
 
 
 def create_item(shopify_item, warehouse, has_variant=False, attributes=None, variant_of=None):
+	item_title = shopify_item.get("title", "").strip()
+	item_name = f"{variant_of} - {item_title}" if variant_of else item_title
+
 	item_dict = {
 		"doctype": "Item",
 		"shopify_product_id": shopify_item.get("product_id"),
@@ -164,10 +167,10 @@ def create_item(shopify_item, warehouse, has_variant=False, attributes=None, var
 		"variant_of": variant_of,
 		"sync_with_shopify": 1,
 		"is_stock_item": 1,
-		"item_code": cstr(shopify_item.get("item_code")) or shopify_item.get("title", "").strip(),
-		"item_name": shopify_item.get("title", "").strip(),
-		"description": shopify_item.get("body_html") or shopify_item.get("title"),
-		"shopify_description": shopify_item.get("body_html") or shopify_item.get("title"),
+		"item_code": cstr(shopify_item.get("item_code")) or item_title,
+		"item_name": item_name,
+		"description": shopify_item.get("body_html") or item_title,
+		"shopify_description": shopify_item.get("body_html") or item_title,
 		"item_group": get_item_group(shopify_item.get("product_type")),
 		"has_variants": has_variant,
 		"attributes": attributes or [],
@@ -191,6 +194,13 @@ def create_item(shopify_item, warehouse, has_variant=False, attributes=None, var
 
 		if not item_details:
 			new_item = frappe.get_doc(item_dict)
+
+			# this fails during the `validate_name_with_item_group` call in item.py
+			# if the item name matches with an existing item group; for such cases,
+			# appending the item group into the item name
+			if frappe.db.exists("Item Group", new_item.item_code):
+				new_item.item_code = f"{new_item.item_code} ({new_item.item_group})"
+
 			new_item.insert(ignore_permissions=True, ignore_mandatory=True)
 			item_code = new_item.name
 
