@@ -42,8 +42,8 @@ def create_delivery_notes(shopify_order, so):
 
 	delivery_notes = []
 	for fulfillment in shopify_order.get("fulfillments"):
-		if not frappe.db.get_value("Delivery Note", {"shopify_fulfillment_id": fulfillment.get("id")}, "name")\
-			and so.docstatus == 1:
+		if so.docstatus == 1 and not frappe.db.get_value("Delivery Note",
+			{"shopify_fulfillment_id": fulfillment.get("id")}, "name"):
 
 			dn = make_delivery_note(so.name)
 			dn.shopify_order_id = shopify_order.get("id")
