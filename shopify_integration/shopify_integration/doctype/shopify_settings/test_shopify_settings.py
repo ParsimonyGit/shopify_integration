@@ -22,8 +22,7 @@ class ShopifySettings(unittest.TestCase):
 		frappe.set_user("Administrator")
 
 		# use the fixture data
-		import_doc(path=frappe.get_app_path("shopify_integration", "shopify_integration/doctype/shopify_settings/test_data/custom_field.json"),
-			ignore_links=True, overwrite=True)
+		import_doc(frappe.get_app_path("shopify_integration", "shopify_integration/doctype/shopify_settings/test_data/custom_field.json"))
 
 		frappe.reload_doctype("Customer")
 		frappe.reload_doctype("Sales Order")
