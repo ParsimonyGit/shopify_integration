@@ -159,6 +159,7 @@ def set_new_attribute_values(item_attr, values):
 def create_item(shopify_item, warehouse, has_variant=False, attributes=None, variant_of=None):
 	item_title = shopify_item.get("title", "").strip()
 	item_description = shopify_item.get("body_html") or item_title
+	item_name = f"{variant_of} - {item_title}" if variant_of else item_title
 
 	item_dict = {
 		"doctype": "Item",
@@ -169,7 +170,7 @@ def create_item(shopify_item, warehouse, has_variant=False, attributes=None, var
 		"sync_with_shopify": 1,
 		"is_stock_item": 1,
 		"item_code": cstr(shopify_item.get("item_code")) or item_title,
-		"item_name": item_title,
+		"item_name": item_name,
 		"description": item_description,
 		"shopify_description": item_description,
 		"item_group": frappe.db.get_single_value("Shopify Settings", "default_item_group"),
@@ -200,6 +201,13 @@ def create_item(shopify_item, warehouse, has_variant=False, attributes=None, var
 			existing_item_doc.save(ignore_permissions=True)
 		else:
 			new_item = frappe.get_doc(item_dict)
+
+			# this fails during the `validate_name_with_item_group` call in item.py
+			# if the item name matches with an existing item group; for such cases,
+			# appending the item group into the item name
+			if frappe.db.exists("Item Group", new_item.item_code):
+				new_item.item_code = f"{new_item.item_code} ({new_item.item_group})"
+
 			new_item.insert(ignore_permissions=True, ignore_mandatory=True)
 			item_code = new_item.name
 
