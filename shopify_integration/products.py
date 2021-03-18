@@ -161,14 +161,20 @@ def create_item(shopify_item, warehouse, has_variant=False, attributes=None, var
 	item_description = shopify_item.get("body_html") or item_title
 	item_name = f"{variant_of} - {item_title}" if variant_of else item_title
 
+	if variant_of:
+		variant_name = frappe.db.get_value("Item", variant_of, "item_name")
+		item_name = f"{variant_name} - {item_title}"
+	else:
+		item_name = item_title
+
 	item_dict = {
 		"doctype": "Item",
 		"shopify_product_id": shopify_item.get("product_id"),
 		"shopify_variant_id": shopify_item.get("variant_id"),
-		"disabled_on_shopify": not shopify_item.get("product_exists"),
+		"disabled_on_shopify": not shopify_item.get("product_exists", True),
 		"variant_of": variant_of,
 		"is_stock_item": 1,
-		"item_code": cstr(shopify_item.get("item_code")) or item_title,
+		"item_code": cstr(shopify_item.get("item_code") or shopify_item.get("id") or item_title),
 		"item_name": item_name,
 		"description": item_description,
 		"shopify_description": item_description,
@@ -220,8 +226,10 @@ def create_item(shopify_item, warehouse, has_variant=False, attributes=None, var
 
 
 def create_item_variants(shopify_item, warehouse, attributes):
-	template_item = frappe.db.get_value("Item", filters={"shopify_product_id": shopify_item.get("product_id")},
-		fieldname=["name", "stock_uom"], as_dict=True)
+	template_item = frappe.db.get_value("Item",
+		filters={"shopify_product_id": shopify_item.get("product_id")},
+		fieldname=["name", "stock_uom"],
+		as_dict=True)
 
 	if template_item:
 		for variant in shopify_item.get("variants", []):
@@ -393,7 +401,7 @@ def is_item_exists(shopify_item, attributes=None, variant_of=None):
 					WHERE
 						{conditions}
 				AND it.variant_of = %s
-		""".format(conditions=conditions), variant_of, as_list=1)
+		""".format(conditions=conditions), variant_of)
 
 		if parent:
 			variant = frappe.get_doc("Item", parent[0])
