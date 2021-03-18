@@ -27,7 +27,6 @@ def create_customer(shopify_customer):
 			"name": shopify_customer.get("id"),
 			"customer_name": cust_name,
 			"shopify_customer_id": shopify_customer.get("id"),
-			"sync_with_shopify": 1,
 			"customer_group": shopify_settings.customer_group,
 			"territory": get_root_of("Territory"),
 			"customer_type": _("Individual")

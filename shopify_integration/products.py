@@ -167,7 +167,6 @@ def create_item(shopify_item, warehouse, has_variant=False, attributes=None, var
 		"shopify_variant_id": shopify_item.get("variant_id"),
 		"disabled_on_shopify": not shopify_item.get("product_exists"),
 		"variant_of": variant_of,
-		"sync_with_shopify": 1,
 		"is_stock_item": 1,
 		"item_code": cstr(shopify_item.get("item_code")) or item_title,
 		"item_name": item_name,
