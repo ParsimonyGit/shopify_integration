@@ -1,6 +1,6 @@
 import frappe
 from erpnext.selling.doctype.sales_order.sales_order import make_delivery_note
-from frappe.utils import cint, cstr, getdate
+from frappe.utils import cint, getdate
 
 from shopify_integration.products import get_item_code
 from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log import make_shopify_log
@@ -11,13 +11,14 @@ def prepare_delivery_note(order, request_id=None):
 	frappe.set_user("Administrator")
 	frappe.flags.request_id = request_id
 
-	try:
-		sales_order = get_shopify_document("Sales Order", cstr(order.get("id")))
-		if sales_order:
+	sales_order = get_shopify_document(doctype="Sales Order", order=order)
+	if sales_order:
+		try:
 			create_delivery_notes(order, sales_order)
-		make_shopify_log(status="Success", response_data=order)
-	except Exception as e:
-		make_shopify_log(status="Error", response_data=order, exception=e, rollback=True)
+		except Exception as e:
+			make_shopify_log(status="Error", response_data=order, exception=e, rollback=True)
+		else:
+			make_shopify_log(status="Success", response_data=order)
 
 
 def create_shopify_delivery(order, so, request_id=None):
@@ -30,8 +31,8 @@ def create_shopify_delivery(order, so, request_id=None):
 		delivery_notes = create_delivery_notes(order, so)
 	except Exception as e:
 		make_shopify_log(status="Error", response_data=order, exception=e)
-		return
 	else:
+		make_shopify_log(status="Success", response_data=order)
 		return delivery_notes
 
 
@@ -42,9 +43,10 @@ def create_delivery_notes(shopify_order, so):
 
 	delivery_notes = []
 	for fulfillment in shopify_order.get("fulfillments"):
-		if not frappe.db.get_value("Delivery Note", {"shopify_fulfillment_id": fulfillment.get("id")}, "name")\
-			and so.docstatus == 1:
+		existing_delivery = frappe.db.get_value("Delivery Note",
+			{"shopify_fulfillment_id": fulfillment.get("id")}, "name")
 
+		if not existing_delivery and so.docstatus == 1:
 			dn = make_delivery_note(so.name)
 			dn.shopify_order_id = shopify_order.get("id")
 			dn.shopify_order_number = shopify_order.get("name")

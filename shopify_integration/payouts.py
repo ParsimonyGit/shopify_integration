@@ -101,9 +101,9 @@ def create_missing_orders(shopify_order_ids):
 	settings = frappe.get_single("Shopify Settings")
 
 	for shopify_order_id in shopify_order_ids:
-		sales_order = get_shopify_document("Sales Order", shopify_order_id)
-		sales_invoice = get_shopify_document("Sales Invoice", shopify_order_id)
-		delivery_note = get_shopify_document("Delivery Note", shopify_order_id)
+		sales_order = get_shopify_document(doctype="Sales Order", order_id=shopify_order_id)
+		sales_invoice = get_shopify_document(doctype="Sales Invoice", order_id=shopify_order_id)
+		delivery_note = get_shopify_document(doctype="Delivery Note", order_id=shopify_order_id)
 
 		if all([sales_order, sales_invoice, delivery_note]):
 			continue
@@ -172,9 +172,9 @@ def create_shopify_payout(payout):
 		total_amount = -flt(transaction.amount) if transaction.type == "payout" else flt(transaction.amount)
 		net_amount = -flt(transaction.net) if transaction.type == "payout" else flt(transaction.net)
 
-		sales_order = get_shopify_document("Sales Order", shopify_order_id)
-		sales_invoice = get_shopify_document("Sales Invoice", shopify_order_id)
-		delivery_note = get_shopify_document("Delivery Note", shopify_order_id)
+		sales_order = get_shopify_document(doctype="Sales Order", order_id=shopify_order_id)
+		sales_invoice = get_shopify_document(doctype="Sales Invoice", order_id=shopify_order_id)
+		delivery_note = get_shopify_document(doctype="Delivery Note", order_id=shopify_order_id)
 
 		payout_doc.append("transactions", {
 			"transaction_id": transaction.id,

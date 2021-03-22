@@ -1,7 +1,7 @@
 import frappe
 from erpnext.accounts.doctype.sales_invoice.sales_invoice import make_sales_return
 from erpnext.selling.doctype.sales_order.sales_order import make_sales_invoice
-from frappe.utils import cint, cstr, flt, get_datetime, getdate
+from frappe.utils import cint, flt, get_datetime, getdate
 
 from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log import make_shopify_log
 from shopify_integration.utils import get_shopify_document, get_tax_account_head
@@ -14,10 +14,10 @@ def prepare_sales_invoice(order, request_id=None):
 	frappe.flags.request_id = request_id
 
 	try:
-		sales_order = get_shopify_document("Sales Order", cstr(order.get("id")))
+		sales_order = get_shopify_document(doctype="Sales Order", order=order)
 		if not sales_order:
 			create_shopify_documents(order, request_id)
-			sales_order = get_shopify_document("Sales Order", cstr(order.get("id")))
+			sales_order = get_shopify_document(doctype="Sales Order", order=order)
 
 		if sales_order:
 			create_sales_invoice(order, sales_order)
@@ -47,8 +47,11 @@ def create_sales_invoice(shopify_order, sales_order):
 	if not cint(shopify_settings.sync_sales_invoice):
 		return
 
-	si = get_shopify_document("Sales Invoice", shopify_order.get("id"))
-	if not si and sales_order.docstatus == 1 and not sales_order.per_billed:
+	existing_invoice = get_shopify_document(doctype="Sales Invoice", order=shopify_order)
+	if existing_invoice:
+		return existing_invoice
+
+	if sales_order.docstatus == 1 and not sales_order.per_billed:
 		si = make_sales_invoice(sales_order.name, ignore_permissions=True)
 		si.shopify_order_id = shopify_order.get("id")
 		si.shopify_order_number = shopify_order.get("name")

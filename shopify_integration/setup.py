@@ -18,7 +18,7 @@ def get_setup_stages(args=None):
 	]
 
 
-def setup_custom_fields(args):
+def setup_custom_fields(args=None):
 	custom_fields = {
 		"Customer": [
 			dict(fieldname='shopify_customer_id', label='Shopify Customer ID',
@@ -44,17 +44,23 @@ def setup_custom_fields(args):
 		],
 		"Sales Order": [
 			dict(fieldname='shopify_order_id', label='Shopify Order ID',
-				fieldtype='Data', insert_after='title', read_only=1, print_hide=1)
+				fieldtype='Data', insert_after='title', read_only=1, print_hide=1),
+			dict(fieldname='shopify_order_number', label='Shopify Order Number',
+				fieldtype='Data', insert_after='shopify_order_id', read_only=1, print_hide=1)
 		],
 		"Delivery Note": [
 			dict(fieldname='shopify_order_id', label='Shopify Order ID',
 				fieldtype='Data', insert_after='title', read_only=1, print_hide=1),
+			dict(fieldname='shopify_order_number', label='Shopify Order Number',
+				fieldtype='Data', insert_after='shopify_order_id', read_only=1, print_hide=1),
 			dict(fieldname='shopify_fulfillment_id', label='Shopify Fulfillment ID',
 				fieldtype='Data', insert_after='title', read_only=1, print_hide=1)
 		],
 		"Sales Invoice": [
 			dict(fieldname='shopify_order_id', label='Shopify Order ID',
-				fieldtype='Data', insert_after='title', read_only=1, print_hide=1)
+				fieldtype='Data', insert_after='title', read_only=1, print_hide=1),
+			dict(fieldname='shopify_order_number', label='Shopify Order Number',
+				fieldtype='Data', insert_after='shopify_order_id', read_only=1, print_hide=1)
 		]
 	}
 

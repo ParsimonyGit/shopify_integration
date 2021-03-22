@@ -1,5 +1,5 @@
 import frappe
-from frappe.utils import cstr, flt, nowdate
+from frappe.utils import flt, nowdate
 
 from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log import make_shopify_log
 from shopify_integration.utils import get_shopify_document, get_tax_account_head
@@ -37,15 +37,10 @@ def create_shopify_order(order, request_id=None):
 
 	frappe.flags.request_id = request_id
 
-	existing_so = frappe.db.get_value("Sales Order",
-		filters={
-			"docstatus": ["<", 2],
-			"shopify_order_id": cstr(order.get("id"))
-		})
-
+	existing_so = get_shopify_document(doctype="Sales Order", order=order)
 	if existing_so:
 		make_shopify_log(status="Skipped", response_data=order)
-		return frappe.get_doc("Sales Order", existing_so)
+		return existing_so
 
 	try:
 		validate_customer(order)
@@ -58,42 +53,29 @@ def create_shopify_order(order, request_id=None):
 		return so
 
 
-def create_sales_order(shopify_order, company=None):
+def create_sales_order(shopify_order):
 	shopify_settings = frappe.get_single("Shopify Settings")
-
 	customer = frappe.db.get_value("Customer", {"shopify_customer_id": shopify_order.get("customer", {}).get("id")}, "name")
-	so = frappe.db.get_value("Sales Order", {"docstatus": ["<", 2], "shopify_order_id": shopify_order.get("id")}, "name")
 
-	if not so:
-		items = get_order_items(shopify_order.get("line_items"), shopify_settings)
+	so = frappe.get_doc({
+		"doctype": "Sales Order",
+		"naming_series": shopify_settings.sales_order_series or "SO-Shopify-",
+		"shopify_order_id": shopify_order.get("id"),
+		"shopify_order_number": shopify_order.get("name"),
+		"customer": customer or shopify_settings.default_customer,
+		"delivery_date": nowdate(),
+		"company": shopify_settings.company,
+		"selling_price_list": shopify_settings.price_list,
+		"ignore_pricing_rule": 1,
+		"items": get_order_items(shopify_order.get("line_items"), shopify_settings),
+		"taxes": get_order_taxes(shopify_order, shopify_settings),
+		"apply_discount_on": "Grand Total",
+		"discount_amount": flt(shopify_order.get("total_discounts")),
+	})
 
-		so = frappe.get_doc({
-			"doctype": "Sales Order",
-			"naming_series": shopify_settings.sales_order_series or "SO-Shopify-",
-			"shopify_order_id": shopify_order.get("id"),
-			"customer": customer or shopify_settings.default_customer,
-			"delivery_date": nowdate(),
-			"company": shopify_settings.company,
-			"selling_price_list": shopify_settings.price_list,
-			"ignore_pricing_rule": 1,
-			"items": items,
-			"taxes": get_order_taxes(shopify_order, shopify_settings),
-			"apply_discount_on": "Grand Total",
-			"discount_amount": flt(shopify_order.get("total_discounts")),
-		})
-
-		if company:
-			so.update({
-				"company": company,
-				"status": "Draft"
-			})
-		so.flags.ignore_mandatory = True
-		so.save(ignore_permissions=True)
-		so.submit()
-
-	else:
-		so = frappe.get_doc("Sales Order", so)
-
+	so.flags.ignore_mandatory = True
+	so.save(ignore_permissions=True)
+	so.submit()
 	frappe.db.commit()
 	return so
 
@@ -150,7 +132,7 @@ def cancel_shopify_order(order, request_id=None):
 
 	doctypes = ["Delivery Note", "Sales Invoice", "Sales Order"]
 	for doctype in doctypes:
-		doc = get_shopify_document(doctype, cstr(order.get("id")))
+		doc = get_shopify_document(doctype=doctype, order=order)
 		if not doc:
 			continue
 

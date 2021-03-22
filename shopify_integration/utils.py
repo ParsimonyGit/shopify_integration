@@ -1,5 +1,6 @@
 import frappe
 from frappe import _
+from frappe.utils import cstr
 
 
 def get_accounting_entry(
@@ -67,21 +68,41 @@ def get_tax_account_head(tax_type):
 	return tax_account
 
 
-def get_shopify_document(doctype, shopify_order_id):
+def get_shopify_document(doctype: str, order: dict = None, order_id: str = str()):
 	"""
-	Get a valid linked document for a Shopify order ID.
+	Check if a Shopify order exists, including references from other apps.
 
 	Args:
-		doctype (str): The doctype to retrieve
-		shopify_order_id (str): The Shopify order ID
+		doctype (str): The doctype records to check against.
+		order (dict, optional): The Shopify order data.
+		order_id (str, optional): The Shopify order ID.
 
 	Returns:
-		Document: The document for the Shopify order. Defaults to an
-			empty object if no document is found.
+		(BaseDocument, False): The document object, if it exists, otherwise False.
 	"""
 
-	name = frappe.db.get_value(doctype,
-		{"docstatus": ["<", 2], "shopify_order_id": shopify_order_id}, "name")
-	if name:
-		return frappe.get_doc(doctype, name)
-	return frappe._dict()
+	if order:
+		shopify_order_id = cstr(order.get("id"))
+		shopify_order_number = cstr(order.get("name"))
+	elif order_id:
+		shopify_order_id = order_id
+		shopify_order_number = None
+
+	# multiple deliveries can be made against a single order
+	if doctype != "Delivery Note":
+		existing_doc = frappe.db.get_value(doctype,
+			{"docstatus": ["<", 2], "shopify_order_id": shopify_order_id}, "name")
+		if existing_doc:
+			return frappe.get_doc(doctype, existing_doc)
+
+	# if multiple integrations are active and linked to each other, such as
+	# Shipstation and Shopify, use the Shopify order number to determine if
+	# an order already exists from the other integration
+	if shopify_order_number:
+		validate_hook = frappe.get_hooks("validate_existing_shopify_document")
+		if validate_hook:
+			existing_docs = frappe.get_attr(validate_hook[0])(doctype, shopify_order_number)
+			if existing_docs:
+				return existing_docs
+
+	return False
