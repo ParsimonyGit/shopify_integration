@@ -1,3 +1,5 @@
+from typing import TYPE_CHECKING, List
+
 import frappe
 from erpnext.selling.doctype.sales_order.sales_order import make_delivery_note
 from frappe.utils import cint, getdate
@@ -6,55 +8,99 @@ from shopify_integration.products import get_item_code
 from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log import make_shopify_log
 from shopify_integration.utils import get_shopify_document
 
+if TYPE_CHECKING:
+	from erpnext.selling.doctype.sales_order.sales_order import SalesOrder
+	from erpnext.stock.doctype.delivery_note.delivery_note import DeliveryNote
+	from shopify import Order
 
-def prepare_delivery_note(order, request_id=None):
+
+def prepare_delivery_note(order: "Order", log_id: str = str()):
+	"""
+	Webhook endpoint to process deliveries for Shopify orders.
+
+	Args:
+		order (Order): The Shopify order data.
+		log_id (str, optional): The ID of an existing Shopify Log.
+			Defaults to an empty string.
+	"""
+
 	frappe.set_user("Administrator")
-	frappe.flags.request_id = request_id
-
-	sales_order = get_shopify_document(doctype="Sales Order", order=order)
-	if sales_order:
-		try:
-			create_delivery_notes(order, sales_order)
-		except Exception as e:
-			make_shopify_log(status="Error", response_data=order, exception=e, rollback=True)
-		else:
-			make_shopify_log(status="Success", response_data=order)
+	create_shopify_delivery(shopify_order=order, log_id=log_id, rollback=True)
 
 
-def create_shopify_delivery(order, so, request_id=None):
-	frappe.flags.request_id = request_id
+def create_shopify_delivery(
+	shopify_order: "Order",
+	sales_order: "SalesOrder" = None,
+	log_id: str = str(),
+	rollback: bool = False
+):
+	"""
+	Create Delivery Note documents for each Shopify delivery.
 
-	if not order.get("fulfillments"):
-		return
+	Args:
+		shopify_order (Order): The Shopify order data.
+		sales_order (SalesOrder, optional): The reference Sales Order document for the
+			Shopify order. Defaults to None.
+		log_id (str, optional): The ID of an existing Shopify Log. Defaults to an empty string.
+		rollback (bool, optional): If an error occurs while processing the order, all
+			transactions will be rolled back, if this field is `True`. Defaults to False.
 
+	Returns:
+		list: The list of created Delivery Note documents, if any, otherwise an empty list.
+	"""
+
+	if not shopify_order.get("fulfillments"):
+		return []
+	if not sales_order:
+		sales_order = get_shopify_document(doctype="Sales Order", order=shopify_order)
+	if not sales_order or sales_order.docstatus != 1:
+		return []
+
+	frappe.flags.log_id = log_id
 	try:
-		delivery_notes = create_delivery_notes(order, so)
+		delivery_notes = create_delivery_notes(shopify_order, sales_order)
 	except Exception as e:
-		make_shopify_log(status="Error", response_data=order, exception=e)
+		make_shopify_log(status="Error", response_data=shopify_order, exception=e, rollback=rollback)
+		return []
 	else:
-		make_shopify_log(status="Success", response_data=order)
+		make_shopify_log(status="Success", response_data=shopify_order)
 		return delivery_notes
 
 
-def create_delivery_notes(shopify_order, so):
+def create_delivery_notes(shopify_order: "Order", sales_order: "SalesOrder") -> List["DeliveryNote"]:
+	"""
+	Helper function to create Delivery Note documents for a Shopify order.
+
+	Args:
+		shopify_order (Order): The Shopify order data.
+		sales_order (SalesOrder): The reference Sales Order document for the Shopify order.
+
+	Returns:
+		list: The list of created Delivery Note documents, if any, otherwise an empty list.
+	"""
+
 	shopify_settings = frappe.get_doc("Shopify Settings")
 	if not cint(shopify_settings.sync_delivery_note):
-		return
+		return []
 
 	delivery_notes = []
 	for fulfillment in shopify_order.get("fulfillments"):
 		existing_delivery = frappe.db.get_value("Delivery Note",
 			{"shopify_fulfillment_id": fulfillment.get("id")}, "name")
 
-		if not existing_delivery and so.docstatus == 1:
-			dn = make_delivery_note(so.name)
-			dn.shopify_order_id = shopify_order.get("id")
-			dn.shopify_order_number = shopify_order.get("name")
-			dn.shopify_fulfillment_id = fulfillment.get("id")
-			dn.set_posting_time = 1
-			dn.posting_date = getdate(fulfillment.get("created_at"))
-			dn.naming_series = shopify_settings.delivery_note_series or "DN-Shopify-"
-			dn.items = get_fulfillment_items(dn.items, fulfillment.get("line_items"))
+		if not existing_delivery:
+			dn = make_delivery_note(sales_order.name)
+			dn.update({
+				"shopify_order_id": shopify_order.get("id"),
+				"shopify_order_number": shopify_order.get("name"),
+				"shopify_fulfillment_id": fulfillment.get("id"),
+				"set_posting_time": 1,
+				"posting_date": getdate(fulfillment.get("created_at")),
+				"naming_series": shopify_settings.delivery_note_series or "DN-Shopify-",
+			})
+
+			update_fulfillment_items(dn.items, fulfillment.get("line_items"))
+
 			dn.flags.ignore_mandatory = True
 			dn.save()
 			dn.submit()
@@ -64,8 +110,9 @@ def create_delivery_notes(shopify_order, so):
 	return delivery_notes
 
 
-def get_fulfillment_items(dn_items, fulfillment_items):
-	# TODO: figure out a better way to add items without setting valuation rate to zero
-	return [dn_item.update({"qty": item.get("quantity"), "allow_zero_valuation_rate": 1})
-		for item in fulfillment_items for dn_item in dn_items
-		if get_item_code(item) == dn_item.item_code]
+def update_fulfillment_items(dn_items, fulfillment_items):
+	for dn_item in dn_items:
+		for item in fulfillment_items:
+			if get_item_code(item) == dn_item.item_code:
+				# TODO: figure out a better way to add items without setting valuation rate to zero
+				dn_item.update({"qty": item.get("quantity"), "allow_zero_valuation_rate": 1})

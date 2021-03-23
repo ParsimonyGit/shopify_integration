@@ -37,7 +37,7 @@ def dump_request_data(data, event="orders/create"):
 
 	frappe.db.commit()
 	frappe.enqueue(method=event_mapper[event], queue='short', timeout=300, is_async=True,
-		**{"order": data, "request_id": log.name})
+		**{"order": data, "log_id": log.name})
 
 
 def get_webhook_url():

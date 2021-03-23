@@ -1,11 +1,17 @@
+from typing import TYPE_CHECKING
+
 import frappe
 from frappe.utils import flt, nowdate
 
 from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log import make_shopify_log
 from shopify_integration.utils import get_shopify_document, get_tax_account_head
 
+if TYPE_CHECKING:
+	from erpnext.selling.doctype.sales_order.sales_order import SalesOrder
+	from shopify import Order
 
-def create_shopify_documents(order, request_id=None):
+
+def create_shopify_documents(order: "Order", log_id: str = str()):
 	"""
 	Create the following from a Shopify order:
 
@@ -15,49 +21,72 @@ def create_shopify_documents(order, request_id=None):
 
 	Args:
 
-		order (dict): The Shopify order data.
-		request_id (str, optional): The ID of the existing Shopify Log document
-			for this request. Defaults to None.
+		order (Order): The Shopify order data.
+		log_id (str, optional): The ID of an existing Shopify Log. Defaults
+			to an empty string.
 	"""
 
 	from shopify_integration.fulfilments import create_shopify_delivery
 	from shopify_integration.invoices import create_shopify_invoice
 
 	frappe.set_user("Administrator")
-	frappe.flags.request_id = request_id
-	so = create_shopify_order(order, request_id)
-	if so:
-		create_shopify_invoice(order, so, request_id)
-		create_shopify_delivery(order, so, request_id)
+	frappe.flags.log_id = log_id
+	sales_order = create_shopify_order(order, log_id)
+	if sales_order:
+		create_shopify_invoice(order, sales_order, log_id)
+		create_shopify_delivery(order, sales_order, log_id)
 
 
-def create_shopify_order(order, request_id=None):
+def create_shopify_order(shopify_order: "Order", log_id: str = str()):
+	"""
+	Create a Sales Order document for a Shopify order.
+
+	Args:
+		shopify_order (Order): The Shopify order data.
+		log_id (str, optional): The ID of an existing Shopify Log. Defaults
+			to an empty string.
+
+	Returns:
+		SalesOrder: The created Sales Order document, if any, otherwise None.
+	"""
+
 	from shopify_integration.customers import validate_customer
 	from shopify_integration.products import validate_item
 
-	frappe.flags.request_id = request_id
+	frappe.flags.log_id = log_id
 
-	existing_so = get_shopify_document(doctype="Sales Order", order=order)
+	existing_so = get_shopify_document(doctype="Sales Order", order=shopify_order)
 	if existing_so:
-		make_shopify_log(status="Skipped", response_data=order)
+		existing_so: "SalesOrder"
+		make_shopify_log(status="Skipped", response_data=shopify_order)
 		return existing_so
 
 	try:
-		validate_customer(order)
-		validate_item(order)
-		so = create_sales_order(order)
+		validate_customer(shopify_order)
+		validate_item(shopify_order)
+		sales_order = create_sales_order(shopify_order)
 	except Exception as e:
-		make_shopify_log(status="Error", response_data=order, exception=e)
+		make_shopify_log(status="Error", response_data=shopify_order, exception=e)
 	else:
-		make_shopify_log(status="Success", response_data=order)
-		return so
+		make_shopify_log(status="Success", response_data=shopify_order)
+		return sales_order
 
 
-def create_sales_order(shopify_order):
+def create_sales_order(shopify_order: "Order"):
+	"""
+	Helper function to create a Sales Order document for a Shopify order.
+
+	Args:
+		shopify_order (Order): The Shopify order data.
+
+	Returns:
+		SalesOrder: The created Sales Order document, if any, otherwise None.
+	"""
+
 	shopify_settings = frappe.get_single("Shopify Settings")
 	customer = frappe.db.get_value("Customer", {"shopify_customer_id": shopify_order.get("customer", {}).get("id")}, "name")
 
-	so = frappe.get_doc({
+	sales_order: "SalesOrder" = frappe.get_doc({
 		"doctype": "Sales Order",
 		"naming_series": shopify_settings.sales_order_series or "SO-Shopify-",
 		"shopify_order_id": shopify_order.get("id"),
@@ -73,11 +102,11 @@ def create_sales_order(shopify_order):
 		"discount_amount": flt(shopify_order.get("total_discounts")),
 	})
 
-	so.flags.ignore_mandatory = True
-	so.save(ignore_permissions=True)
-	so.submit()
+	sales_order.flags.ignore_mandatory = True
+	sales_order.save(ignore_permissions=True)
+	sales_order.submit()
 	frappe.db.commit()
-	return so
+	return sales_order
 
 
 def get_order_items(order_items, shopify_settings):
@@ -126,9 +155,18 @@ def get_order_taxes(shopify_order, shopify_settings):
 	return taxes
 
 
-def cancel_shopify_order(order, request_id=None):
+def cancel_shopify_order(order: "Order", log_id: str = str()):
+	"""
+	Cancel all sales documents if a Shopify order is cancelled.
+
+	Args:
+		order (Order): The Shopify order data.
+		log_id (str, optional): The ID of an existing Shopify Log.
+			Defaults to an empty string.
+	"""
+
 	frappe.set_user("Administrator")
-	frappe.flags.request_id = request_id
+	frappe.flags.log_id = log_id
 
 	doctypes = ["Delivery Note", "Sales Invoice", "Sales Order"]
 	for doctype in doctypes:

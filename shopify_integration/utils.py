@@ -1,6 +1,11 @@
+from typing import TYPE_CHECKING
+
 import frappe
 from frappe import _
 from frappe.utils import cstr
+
+if TYPE_CHECKING:
+	from shopify import Order
 
 
 def get_accounting_entry(
@@ -68,13 +73,13 @@ def get_tax_account_head(tax_type):
 	return tax_account
 
 
-def get_shopify_document(doctype: str, order: dict = None, order_id: str = str()):
+def get_shopify_document(doctype: str, order: "Order" = None, order_id: str = str()):
 	"""
 	Check if a Shopify order exists, including references from other apps.
 
 	Args:
 		doctype (str): The doctype records to check against.
-		order (dict, optional): The Shopify order data.
+		order (Order, optional): The Shopify order data.
 		order_id (str, optional): The Shopify order ID.
 
 	Returns:
