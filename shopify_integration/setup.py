@@ -18,7 +18,7 @@ def get_setup_stages(args=None):
 	]
 
 
-def setup_custom_fields(args):
+def setup_custom_fields(args=None):
 	custom_fields = {
 		"Customer": [
 			dict(fieldname='shopify_customer_id', label='Shopify Customer ID',
@@ -33,14 +33,27 @@ def setup_custom_fields(args):
 				fieldtype='Data', insert_after='fax', read_only=1, print_hide=1)
 		],
 		"Item": [
+			# Shopify details
 			dict(fieldname='shopify_variant_id', label='Shopify Variant ID',
 				fieldtype='Data', insert_after='item_code', read_only=1, print_hide=1),
 			dict(fieldname='shopify_product_id', label='Shopify Product ID',
 				fieldtype='Data', insert_after='item_code', read_only=1, print_hide=1),
+			dict(fieldname='disabled_on_shopify', label='Disabled on Shopify',
+				fieldtype='Check', insert_after='disabled', read_only=1, print_hide=1),
+			dict(fieldname='marketplace_item_group', label='Marketplace Item Group',
+				fieldtype='Data', insert_after='item_group', read_only=1, print_hide=1),
 			dict(fieldname='shopify_description', label='Shopify Description',
 				fieldtype='Text Editor', insert_after='description', read_only=1, print_hide=1),
-			dict(fieldname='disabled_on_shopify', label='Disabled on Shopify',
-				fieldtype='Check', insert_after='disabled', read_only=1, print_hide=1)
+
+			# Integration section
+			dict(fieldname='integration_details', label='Shopify', fieldtype='Section Break',
+				insert_after='description'),
+			dict(fieldname='integration_doctype', label='Integration DocType',
+				fieldtype='Link', options='DocType', insert_after='integration_details',
+				hidden=1, print_hide=1),
+			dict(fieldname='cb_shopify', fieldtype='Column Break', insert_after='integration_doctype'),
+			dict(fieldname='integration_doc', label='Integration Doc', fieldtype='Data',
+				insert_after='cb_shopify', hidden=1, print_hide=1),
 		],
 		"Sales Order": [
 			dict(fieldname='shopify_order_id', label='Shopify Order ID',

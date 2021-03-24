@@ -60,6 +60,7 @@ setup_wizard_stages = "shopify_integration.setup.get_setup_stages"
 
 # before_install = "shopify_integration.install.before_install"
 # after_install = "shopify_integration.install.after_install"
+before_migrate = "shopify_integration.setup.setup_custom_fields"
 
 # Desk Notifications
 # ------------------
