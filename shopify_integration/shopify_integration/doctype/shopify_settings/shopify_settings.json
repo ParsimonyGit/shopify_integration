@@ -20,6 +20,7 @@
   "webhooks",
   "sb_company",
   "company",
+  "default_item_group",
   "cb_company",
   "cost_center",
   "sb_customer",
@@ -281,10 +282,17 @@
    "fieldtype": "Link",
    "label": "Payment Fee Account",
    "options": "Account"
+  },
+  {
+   "default": "All Item Groups",
+   "fieldname": "default_item_group",
+   "fieldtype": "Link",
+   "label": "Default Item Group",
+   "options": "Item Group"
   }
  ],
  "issingle": 1,
- "modified": "2021-01-27 00:55:35.414257",
+ "modified": "2021-03-15 03:28:40.516690",
  "modified_by": "Administrator",
  "module": "Shopify Integration",
  "name": "Shopify Settings",

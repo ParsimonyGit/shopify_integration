@@ -12,7 +12,7 @@ from frappe.core.doctype.data_import.data_import import import_doc
 from frappe.utils import cstr
 
 from shopify_integration.customers import create_customer
-from shopify_integration.orders import sync_sales_order
+from shopify_integration.orders import create_shopify_documents
 from shopify_integration.products import make_item
 from shopify_integration.utils import get_shopify_document
 
@@ -22,8 +22,7 @@ class ShopifySettings(unittest.TestCase):
 		frappe.set_user("Administrator")
 
 		# use the fixture data
-		import_doc(path=frappe.get_app_path("shopify_integration", "shopify_integration/doctype/shopify_settings/test_data/custom_field.json"),
-			ignore_links=True, overwrite=True)
+		import_doc(frappe.get_app_path("shopify_integration", "shopify_integration/doctype/shopify_settings/test_data/custom_field.json"))
 
 		frappe.reload_doctype("Customer")
 		frappe.reload_doctype("Sales Order")
@@ -46,7 +45,7 @@ class ShopifySettings(unittest.TestCase):
 		# create order
 		with open(os.path.join(os.path.dirname(__file__), "test_data", "shopify_order.json")) as shopify_order:
 			shopify_order = json.loads(shopify_order.read())
-			sync_sales_order(shopify_order.get("order"))
+			create_shopify_documents(shopify_order.get("order"))
 
 		# verify sales order IDs
 		shopify_order_id = cstr(shopify_order.get("order", {}).get("id"))
