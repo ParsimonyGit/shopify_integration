@@ -52,7 +52,7 @@ def get_debit_or_credit(amount, account):
 		return debit_field if amount < 0 else credit_field
 
 
-def get_tax_account_head(tax_type):
+def get_tax_account_head(shop_name: str, tax_type: str):
 	tax_map = {
 		"payout": "cash_bank_account",
 		"refund": "cash_bank_account",
@@ -66,7 +66,7 @@ def get_tax_account_head(tax_type):
 	if not tax_field:
 		frappe.throw(_("Account not specified for '{0}'".format(frappe.unscrub(tax_type))))
 
-	tax_account = frappe.db.get_single_value("Shopify Settings", tax_field)
+	tax_account = frappe.db.get_value("Shopify Settings", shop_name, tax_field)
 	if not tax_account:
 		frappe.throw(_("Account not specified for '{0}'".format(frappe.unscrub(tax_field))))
 

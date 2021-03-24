@@ -97,7 +97,7 @@ before_migrate = "shopify_integration.setup.setup_custom_fields"
 
 scheduler_events = {
 	"daily_long": [
-		"shopify_integration.payouts.sync_payouts_from_shopify"
+		"shopify_integration.payouts.sync_all_payouts"
 	]
 }
 

@@ -3,6 +3,7 @@
 # For license information, please see license.txt
 
 from collections import defaultdict
+from typing import TYPE_CHECKING
 
 import frappe
 from frappe.model.document import Document
@@ -11,6 +12,9 @@ from frappe.utils import cint, flt
 from shopify_integration.invoices import create_sales_return
 from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log import make_shopify_log
 from shopify_integration.utils import get_accounting_entry, get_tax_account_head
+
+if TYPE_CHECKING:
+	from shopify_integration.shopify_integration.doctype.shopify_settings.shopify_settings import ShopifySettings
 
 
 class ShopifyPayout(Document):
@@ -50,10 +54,10 @@ class ShopifyPayout(Document):
 
 				invoice.append("taxes", {
 					"charge_type": "Actual",
-					"account_head": get_tax_account_head("fee"),
+					"account_head": get_tax_account_head(self.shop_name, "fee"),
 					"description": transaction.transaction_type,
 					"tax_amount": -flt(transaction.fee),
-					"cost_center": frappe.db.get_single_value("Shopify Settings", "cost_center")
+					"cost_center": frappe.db.get_value("Shopify Settings", self.shop_name, "cost_center")
 				})
 
 			invoice.save()
@@ -61,7 +65,7 @@ class ShopifyPayout(Document):
 
 	def update_cancelled_shopify_orders(self):
 		doctypes = ["Delivery Note", "Sales Invoice", "Sales Order"]
-		settings = frappe.get_single("Shopify Settings")
+		settings: "ShopifySettings" = frappe.get_doc("Shopify Settings", self.shop_name)
 
 		for transaction in self.transactions:
 			if not transaction.source_order_id:
@@ -121,7 +125,7 @@ class ShopifyPayout(Document):
 
 			if not is_invoice_returned:
 				si_doc = frappe.get_doc("Sales Invoice", transaction.sales_invoice)
-				create_sales_return(transaction.source_order_id, financial_status, si_doc)
+				create_sales_return(self.shop_name, transaction.source_order_id, financial_status, si_doc)
 
 	def create_payout_journal_entry(self):
 		entries = []
@@ -129,7 +133,7 @@ class ShopifyPayout(Document):
 		# make payout cash entry
 		for transaction in self.transactions:
 			if transaction.total_amount and transaction.transaction_type.lower() == "payout":
-				account = get_tax_account_head("payout")
+				account = get_tax_account_head(self.shop_name, "payout")
 				amount = flt(transaction.net_amount)
 				entry = get_accounting_entry(account=account, amount=amount)
 				entries.append(entry)

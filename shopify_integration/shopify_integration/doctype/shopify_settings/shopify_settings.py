@@ -72,6 +72,16 @@ class ShopifySettings(Document):
 	def get_webhooks(self, *args, **kwargs):
 		return self.get_resources(Webhook, *args, **kwargs)
 
+	def sync_products(self):
+		"Pull and sync products from Shopify, including variants"
+		from shopify_integration.products import sync_items_from_shopify
+		frappe.enqueue(method=sync_items_from_shopify, queue="long", is_async=True, **{"shop_name": self.name})
+
+	def sync_payouts(self):
+		"Pull and sync payouts from Shopify Payments transactions"
+		from shopify_integration.payouts import create_shopify_payouts
+		frappe.enqueue(method=create_shopify_payouts, queue='long', is_async=True, **{"shop_name": self.name})
+
 	def validate_access_credentials(self):
 		if not self.shopify_url:
 			frappe.throw(_("Missing value for Shop URL"))
@@ -86,9 +96,9 @@ class ShopifySettings(Document):
 			self.unregister_webhooks()
 
 	def register_webhooks(self):
-		from shopify_integration.webhooks import get_webhook_url, SHOPIFY_WEBHOOK_TOPICS
+		from shopify_integration.webhooks import get_webhook_url, SHOPIFY_WEBHOOK_TOPIC_MAPPER
 
-		for topic in SHOPIFY_WEBHOOK_TOPICS:
+		for topic in SHOPIFY_WEBHOOK_TOPIC_MAPPER:
 			with self.get_shopify_session(temp=True):
 				webhook = Webhook.create({
 					"topic": topic,

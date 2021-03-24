@@ -8,9 +8,10 @@
  "field_order": [
   "payout_id",
   "company",
+  "shop_name",
   "status",
-  "payout_date",
   "cb_payout",
+  "payout_date",
   "amount",
   "currency",
   "sb_summary",
@@ -185,10 +186,17 @@
    "fieldtype": "Table",
    "options": "Shopify Payout Transaction",
    "read_only": 1
+  },
+  {
+   "fieldname": "shop_name",
+   "fieldtype": "Link",
+   "label": "Shop Name",
+   "options": "Shopify Settings",
+   "read_only": 1
   }
  ],
  "is_submittable": 1,
- "modified": "2021-01-27 00:55:37.706988",
+ "modified": "2021-03-25 06:05:57.171458",
  "modified_by": "Administrator",
  "module": "Shopify Integration",
  "name": "Shopify Payout",

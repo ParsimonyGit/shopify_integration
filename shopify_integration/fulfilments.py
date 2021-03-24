@@ -12,23 +12,26 @@ if TYPE_CHECKING:
 	from erpnext.selling.doctype.sales_order.sales_order import SalesOrder
 	from erpnext.stock.doctype.delivery_note.delivery_note import DeliveryNote
 	from shopify import Order
+	from shopify_integration.shopify_integration.doctype.shopify_settings.shopify_settings import ShopifySettings
 
 
-def prepare_delivery_note(order: "Order", log_id: str = str()):
+def prepare_delivery_note(shop_name: str, order: "Order", log_id: str = str()):
 	"""
 	Webhook endpoint to process deliveries for Shopify orders.
 
 	Args:
+		shop_name (str): The name of the Shopify configuration for the store.
 		order (Order): The Shopify order data.
 		log_id (str, optional): The ID of an existing Shopify Log.
 			Defaults to an empty string.
 	"""
 
 	frappe.set_user("Administrator")
-	create_shopify_delivery(shopify_order=order, log_id=log_id, rollback=True)
+	create_shopify_delivery(shop_name=shop_name, shopify_order=order, log_id=log_id, rollback=True)
 
 
 def create_shopify_delivery(
+	shop_name: str,
 	shopify_order: "Order",
 	sales_order: "SalesOrder" = None,
 	log_id: str = str(),
@@ -38,6 +41,7 @@ def create_shopify_delivery(
 	Create Delivery Note documents for each Shopify delivery.
 
 	Args:
+		shop_name (str): The name of the Shopify configuration for the store.
 		shopify_order (Order): The Shopify order data.
 		sales_order (SalesOrder, optional): The reference Sales Order document for the
 			Shopify order. Defaults to None.
@@ -58,7 +62,7 @@ def create_shopify_delivery(
 
 	frappe.flags.log_id = log_id
 	try:
-		delivery_notes = create_delivery_notes(shopify_order, sales_order)
+		delivery_notes = create_delivery_notes(shop_name, shopify_order, sales_order)
 	except Exception as e:
 		make_shopify_log(status="Error", response_data=shopify_order, exception=e, rollback=rollback)
 		return []
@@ -67,11 +71,16 @@ def create_shopify_delivery(
 		return delivery_notes
 
 
-def create_delivery_notes(shopify_order: "Order", sales_order: "SalesOrder") -> List["DeliveryNote"]:
+def create_delivery_notes(
+	shop_name: str,
+	shopify_order: "Order",
+	sales_order: "SalesOrder"
+) -> List["DeliveryNote"]:
 	"""
 	Helper function to create Delivery Note documents for a Shopify order.
 
 	Args:
+		shop_name (str): The name of the Shopify configuration for the store.
 		shopify_order (Order): The Shopify order data.
 		sales_order (SalesOrder): The reference Sales Order document for the Shopify order.
 
@@ -79,7 +88,7 @@ def create_delivery_notes(shopify_order: "Order", sales_order: "SalesOrder") -> 
 		list: The list of created Delivery Note documents, if any, otherwise an empty list.
 	"""
 
-	shopify_settings = frappe.get_doc("Shopify Settings")
+	shopify_settings: "ShopifySettings" = frappe.get_doc("Shopify Settings", shop_name)
 	if not cint(shopify_settings.sync_delivery_note):
 		return []
 
@@ -89,7 +98,7 @@ def create_delivery_notes(shopify_order: "Order", sales_order: "SalesOrder") -> 
 			{"shopify_fulfillment_id": fulfillment.get("id")}, "name")
 
 		if not existing_delivery:
-			dn = make_delivery_note(sales_order.name)
+			dn: "DeliveryNote" = make_delivery_note(sales_order.name)
 			dn.update({
 				"shopify_order_id": shopify_order.get("id"),
 				"shopify_order_number": shopify_order.get("name"),

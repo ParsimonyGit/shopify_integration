@@ -48,33 +48,37 @@ frappe.ui.form.on("Shopify Settings", {
 			`);
 		}
 
-		frm.add_custom_button(__("Products"), function () {
-			frappe.call({
-				method: "shopify_integration.products.sync_products_from_shopify",
-				freeze: true,
-				callback: function (r) {
-					if (r.message) {
-						frappe.msgprint(__("Product sync has been queued. This may take a few minutes."));
-					} else {
-						frappe.msgprint(__("Something went wrong while trying to sync products. Please check the latest Shopify logs."))
+		if (frm.doc.enable_shopify) {
+			frm.add_custom_button(__("Products"), function () {
+				frm.call({
+					doc: frm.doc,
+					method: "sync_products",
+					freeze: true,
+					callback: function (r) {
+						if (r.message) {
+							frappe.msgprint(__("Product sync has been queued. This may take a few minutes."));
+						} else {
+							frappe.msgprint(__("Something went wrong while trying to sync products. Please check the latest Shopify logs."))
+						}
 					}
-				}
-			})
-		}, __("Sync"))
+				})
+			}, __("Sync"));
 
-		frm.add_custom_button(__("Payouts"), function () {
-			frappe.call({
-				method: "shopify_integration.payouts.sync_payouts_from_shopify",
-				freeze: true,
-				callback: function (r) {
-					if (r.message) {
-						frappe.msgprint(__("Payout sync has been queued. This may take a few minutes."));
-					} else {
-						frappe.msgprint(__("Something went wrong while trying to sync payouts. Please check the latest Shopify logs."))
+			frm.add_custom_button(__("Payouts"), function () {
+				frm.call({
+					doc: frm.doc,
+					method: "sync_payouts",
+					freeze: true,
+					callback: function (r) {
+						if (r.message) {
+							frappe.msgprint(__("Payout sync has been queued. This may take a few minutes."));
+						} else {
+							frappe.msgprint(__("Something went wrong while trying to sync payouts. Please check the latest Shopify logs."))
+						}
 					}
-				}
-			})
-		}, __("Sync"))
+				})
+			}, __("Sync"));
+		}
 	},
 
 	app_type: function (frm) {

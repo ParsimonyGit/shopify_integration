@@ -3,16 +3,14 @@ from frappe import _
 from frappe.utils import cstr
 
 
-def validate_customer(shopify_order):
+def validate_customer(shop_name, shopify_order):
 	customer_id = shopify_order.get("customer", {}).get("id")
 	if customer_id and not frappe.db.get_value("Customer", {"shopify_customer_id": customer_id}, "name"):
-		create_customer(shopify_order.get("customer"))
+		create_customer(shop_name, shopify_order.get("customer"))
 
 
-def create_customer(shopify_customer):
+def create_customer(shop_name, shopify_customer):
 	from frappe.utils.nestedset import get_root_of
-
-	shopify_settings = frappe.get_single("Shopify Settings")
 
 	if shopify_customer.get("first_name"):
 		first_name = cstr(shopify_customer.get("first_name"))
@@ -27,7 +25,7 @@ def create_customer(shopify_customer):
 			"name": shopify_customer.get("id"),
 			"customer_name": cust_name,
 			"shopify_customer_id": shopify_customer.get("id"),
-			"customer_group": shopify_settings.customer_group,
+			"customer_group": frappe.db.get_value("Shopify Settings", shop_name, "customer_group"),
 			"territory": get_root_of("Territory"),
 			"customer_type": _("Individual")
 		})

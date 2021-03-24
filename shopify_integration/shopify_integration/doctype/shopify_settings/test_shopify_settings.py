@@ -32,20 +32,22 @@ class ShopifySettings(unittest.TestCase):
 		setup_shopify()
 
 	def test_order(self):
+		shopify_settings = frappe.get_doc("Shopify Settings", "Test Shopify")
+
 		# create customer
 		with open(os.path.join(os.path.dirname(__file__), "test_data", "shopify_customer.json")) as shopify_customer:
 			shopify_customer = json.loads(shopify_customer.read())
-			create_customer(shopify_customer.get("customer"))
+			create_customer(shopify_settings.name, shopify_customer.get("customer"))
 
 		# create item
 		with open(os.path.join(os.path.dirname(__file__), "test_data", "shopify_item.json")) as shopify_item:
 			shopify_item = json.loads(shopify_item.read())
-			make_item(shopify_item.get("product"))
+			make_item(shopify_settings, shopify_item.get("product"))
 
 		# create order
 		with open(os.path.join(os.path.dirname(__file__), "test_data", "shopify_order.json")) as shopify_order:
 			shopify_order = json.loads(shopify_order.read())
-			create_shopify_documents(shopify_order.get("order"))
+			create_shopify_documents(shopify_settings.name, shopify_order.get("order"))
 
 		# verify sales order IDs
 		shopify_order_id = cstr(shopify_order.get("order", {}).get("id"))
@@ -69,9 +71,10 @@ class ShopifySettings(unittest.TestCase):
 
 
 def setup_shopify():
-	shopify_settings = frappe.get_single("Shopify Settings")
+	shopify_settings = frappe.new_doc("Shopify Settings")
 	shopify_settings.update({
 		"app_type": "Private",
+		"shop_name": "Test Shopify",
 		"shopify_url": "test.myshopify.com",
 		"api_key": secrets.token_urlsafe(nbytes=16),
 		"password": secrets.token_urlsafe(nbytes=16),

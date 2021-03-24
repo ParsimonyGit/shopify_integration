@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 	from shopify import Order
 
 
-def create_shopify_documents(order: "Order", log_id: str = str()):
+def create_shopify_documents(shop_name: str, order: "Order", log_id: str = str()):
 	"""
 	Create the following from a Shopify order:
 
@@ -21,6 +21,7 @@ def create_shopify_documents(order: "Order", log_id: str = str()):
 
 	Args:
 
+		shop_name (str): The name of the Shopify configuration for the store.
 		order (Order): The Shopify order data.
 		log_id (str, optional): The ID of an existing Shopify Log. Defaults
 			to an empty string.
@@ -31,17 +32,18 @@ def create_shopify_documents(order: "Order", log_id: str = str()):
 
 	frappe.set_user("Administrator")
 	frappe.flags.log_id = log_id
-	sales_order = create_shopify_order(order, log_id)
+	sales_order = create_shopify_order(shop_name, order, log_id)
 	if sales_order:
-		create_shopify_invoice(order, sales_order, log_id)
-		create_shopify_delivery(order, sales_order, log_id)
+		create_shopify_invoice(shop_name, order, sales_order, log_id)
+		create_shopify_delivery(shop_name, order, sales_order, log_id)
 
 
-def create_shopify_order(shopify_order: "Order", log_id: str = str()):
+def create_shopify_order(shop_name: str, shopify_order: "Order", log_id: str = str()):
 	"""
 	Create a Sales Order document for a Shopify order.
 
 	Args:
+		shop_name (str): The name of the Shopify configuration for the store.
 		shopify_order (Order): The Shopify order data.
 		log_id (str, optional): The ID of an existing Shopify Log. Defaults
 			to an empty string.
@@ -62,9 +64,9 @@ def create_shopify_order(shopify_order: "Order", log_id: str = str()):
 		return existing_so
 
 	try:
-		validate_customer(shopify_order)
-		validate_item(shopify_order)
-		sales_order = create_sales_order(shopify_order)
+		validate_customer(shop_name, shopify_order)
+		validate_item(shop_name, shopify_order)
+		sales_order = create_sales_order(shop_name, shopify_order)
 	except Exception as e:
 		make_shopify_log(status="Error", response_data=shopify_order, exception=e)
 	else:
@@ -72,18 +74,19 @@ def create_shopify_order(shopify_order: "Order", log_id: str = str()):
 		return sales_order
 
 
-def create_sales_order(shopify_order: "Order"):
+def create_sales_order(shop_name: str, shopify_order: "Order"):
 	"""
 	Helper function to create a Sales Order document for a Shopify order.
 
 	Args:
+		shop_name (str): The name of the Shopify configuration for the store.
 		shopify_order (Order): The Shopify order data.
 
 	Returns:
 		SalesOrder: The created Sales Order document, if any, otherwise None.
 	"""
 
-	shopify_settings = frappe.get_single("Shopify Settings")
+	shopify_settings = frappe.get_doc("Shopify Settings", shop_name)
 	customer = frappe.db.get_value("Customer", {"shopify_customer_id": shopify_order.get("customer", {}).get("id")}, "name")
 
 	sales_order: "SalesOrder" = frappe.get_doc({
@@ -96,7 +99,7 @@ def create_sales_order(shopify_order: "Order"):
 		"company": shopify_settings.company,
 		"selling_price_list": shopify_settings.price_list,
 		"ignore_pricing_rule": 1,
-		"items": get_order_items(shopify_order.get("line_items"), shopify_settings),
+		"items": get_order_items(shopify_order.get("line_items"), shopify_settings.warehouse),
 		"taxes": get_order_taxes(shopify_order, shopify_settings),
 		"apply_discount_on": "Grand Total",
 		"discount_amount": flt(shopify_order.get("total_discounts")),
@@ -109,11 +112,11 @@ def create_sales_order(shopify_order: "Order"):
 	return sales_order
 
 
-def get_order_items(order_items, shopify_settings):
+def get_order_items(shopify_order_items, warehouse):
 	from shopify_integration.products import get_item_code
 
 	items = []
-	for shopify_item in order_items:
+	for shopify_item in shopify_order_items:
 		item_code = get_item_code(shopify_item)
 		items.append({
 			"item_code": item_code,
@@ -122,7 +125,7 @@ def get_order_items(order_items, shopify_settings):
 			"delivery_date": nowdate(),
 			"qty": shopify_item.get("quantity"),
 			"stock_uom": shopify_item.get("uom") or "Nos",
-			"warehouse": shopify_settings.warehouse
+			"warehouse": warehouse
 		})
 	return items
 
@@ -135,7 +138,7 @@ def get_order_taxes(shopify_order, shopify_settings):
 		if shipping.get("price"):
 			taxes.append({
 				"charge_type": "Actual",
-				"account_head": get_tax_account_head("shipping"),
+				"account_head": get_tax_account_head(shopify_settings.name, "shipping"),
 				"description": shipping.get("title"),
 				"tax_amount": shipping.get("price"),
 				"cost_center": shopify_settings.cost_center
@@ -145,7 +148,7 @@ def get_order_taxes(shopify_order, shopify_settings):
 	for tax in shopify_order.get("tax_lines"):
 		taxes.append({
 			"charge_type": "Actual",
-			"account_head": get_tax_account_head("tax"),
+			"account_head": get_tax_account_head(shopify_settings.name, "tax"),
 			"description": "{0} - {1}%".format(tax.get("title"), tax.get("rate") * 100.0),
 			"tax_amount": tax.get("price"),
 			"cost_center": shopify_settings.cost_center,
@@ -155,11 +158,12 @@ def get_order_taxes(shopify_order, shopify_settings):
 	return taxes
 
 
-def cancel_shopify_order(order: "Order", log_id: str = str()):
+def cancel_shopify_order(shop_name: str, order: "Order", log_id: str = str()):
 	"""
 	Cancel all sales documents if a Shopify order is cancelled.
 
 	Args:
+		shop_name (str): The name of the Shopify configuration for the store.
 		order (Order): The Shopify order data.
 		log_id (str, optional): The ID of an existing Shopify Log.
 			Defaults to an empty string.

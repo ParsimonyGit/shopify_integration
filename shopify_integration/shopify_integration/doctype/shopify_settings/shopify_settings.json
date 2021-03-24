@@ -1,13 +1,15 @@
 {
- "creation": "2015-05-18 05:21:07.270859",
+ "autoname": "field:shop_name",
+ "creation": "2021-03-24 07:03:58.991830",
  "doctype": "DocType",
  "document_type": "System",
  "engine": "InnoDB",
  "field_order": [
-  "status_html",
   "enable_shopify",
+  "sb_shop",
+  "shop_name",
   "shopify_url",
-  "column_break_4",
+  "cb_shop",
   "app_type",
   "last_sync_datetime",
   "sb_auth",
@@ -20,7 +22,6 @@
   "webhooks",
   "sb_company",
   "company",
-  "default_item_group",
   "cb_company",
   "cost_center",
   "sb_customer",
@@ -48,28 +49,20 @@
  ],
  "fields": [
   {
-   "fieldname": "status_html",
-   "fieldtype": "HTML",
-   "label": "status html",
-   "read_only": 1
-  },
-  {
    "default": "0",
    "fieldname": "enable_shopify",
    "fieldtype": "Check",
-   "label": "Enable Shopify"
+   "in_list_view": 1,
+   "label": "Enabled"
   },
   {
-   "description": "eg: frappe.myshopify.com",
+   "description": "For example, https://frappe.myshopify.com",
    "fieldname": "shopify_url",
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Shop URL",
-   "reqd": 1
-  },
-  {
-   "fieldname": "column_break_4",
-   "fieldtype": "Column Break"
+   "reqd": 1,
+   "unique": 1
   },
   {
    "default": "Private",
@@ -284,15 +277,22 @@
    "options": "Account"
   },
   {
-   "default": "All Item Groups",
-   "fieldname": "default_item_group",
-   "fieldtype": "Link",
-   "label": "Default Item Group",
-   "options": "Item Group"
+   "fieldname": "shop_name",
+   "fieldtype": "Data",
+   "label": "Shop Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "sb_shop",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "cb_shop",
+   "fieldtype": "Column Break"
   }
  ],
- "issingle": 1,
- "modified": "2021-03-15 03:28:40.516690",
+ "modified": "2021-03-25 06:26:55.569093",
  "modified_by": "Administrator",
  "module": "Shopify Integration",
  "name": "Shopify Settings",
@@ -310,5 +310,6 @@
   }
  ],
  "sort_field": "modified",
- "sort_order": "DESC"
+ "sort_order": "DESC",
+ "track_changes": 1
 }
