@@ -30,9 +30,10 @@
   "customer_group",
   "sb_transactions",
   "price_list",
-  "update_price_in_erpnext_price_list",
+  "item_group",
   "cb_transactions",
   "warehouse",
+  "update_price_in_erpnext_price_list",
   "sb_naming_series",
   "sales_order_series",
   "sync_delivery_note",
@@ -290,9 +291,16 @@
   {
    "fieldname": "cb_shop",
    "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "item_group",
+   "fieldtype": "Link",
+   "label": "Item Group",
+   "options": "Item Group",
+   "reqd": 1
   }
  ],
- "modified": "2021-03-25 06:26:55.569093",
+ "modified": "2021-03-25 08:27:22.587549",
  "modified_by": "Administrator",
  "module": "Shopify Integration",
  "name": "Shopify Settings",

@@ -1,0 +1,1 @@
+shopify_integration.patches.create_shopify_settings_documents

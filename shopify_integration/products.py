@@ -187,7 +187,7 @@ def create_item(shopify_settings, shopify_item, has_variant=False, attributes=No
 		"item_name": item_name,
 		"description": item_description,
 		"shopify_description": item_description,
-		"item_group": shopify_settings.default_item_group,
+		"item_group": shopify_settings.item_group,
 		"marketplace_item_group": get_item_group(shopify_item.get("product_type")),
 		"has_variants": has_variant,
 		"attributes": attributes or [],
