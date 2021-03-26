@@ -152,6 +152,7 @@ def create_shopify_payout(shopify_settings: "ShopifySettings", payout: "Payouts"
 
 	payout_doc: "ShopifyPayout" = frappe.new_doc("Shopify Payout")
 	payout_doc.update({
+		"shop_name": shopify_settings.name,
 		"company": shopify_settings.company,
 		"payout_id": payout.id,
 		"payout_date": getdate(payout.date),

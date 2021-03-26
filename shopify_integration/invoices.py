@@ -103,24 +103,28 @@ def create_sales_invoice(shop_name: str, shopify_order: "Order", sales_order: "S
 	existing_invoice = get_shopify_document(doctype="Sales Invoice", order=shopify_order)
 	if existing_invoice:
 		existing_invoice: "SalesInvoice"
-		frappe.db.set_value("Sales Invoice", existing_invoice.name,
-			"shopify_order_id", shopify_order.get("id"))
-		frappe.db.set_value("Sales Invoice", existing_invoice.name,
-			"shopify_order_number", shopify_order.get("name"))
+		frappe.db.set_value("Sales Invoice", existing_invoice.name, {
+			"shopify_settings": shopify_settings.name,
+			"shopify_order_id": shopify_order.get("id"),
+			"shopify_order_number": shopify_order.get("order_number")
+		})
 		return existing_invoice
 
 	if sales_order.docstatus == 1 and not sales_order.per_billed:
 		sales_invoice: "SalesInvoice" = make_sales_invoice(sales_order.name, ignore_permissions=True)
-		sales_invoice.shopify_order_id = shopify_order.get("id")
-		sales_invoice.shopify_order_number = shopify_order.get("name")
-		sales_invoice.set_posting_time = 1
-		sales_invoice.posting_date = getdate(shopify_order.get("created_at"))
-		sales_invoice.naming_series = shopify_settings.sales_invoice_series or "SI-Shopify-"
-		sales_invoice.flags.ignore_mandatory = True
+		sales_invoice.update({
+			"shopify_settings": shopify_settings.name,
+			"shopify_order_id": shopify_order.get("id"),
+			"shopify_order_number": shopify_order.get("order_number"),
+			"set_posting_time": True,
+			"posting_date": getdate(shopify_order.get("created_at")),
+			"naming_series": shopify_settings.sales_invoice_series or "SI-Shopify-"
+		})
 
 		for item in sales_invoice.items:
 			item.cost_center = shopify_settings.cost_center
 
+		sales_invoice.flags.ignore_mandatory = True
 		sales_invoice.insert(ignore_mandatory=True)
 		frappe.db.commit()
 		return sales_invoice

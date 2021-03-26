@@ -100,10 +100,11 @@ def create_delivery_notes(
 		if not existing_delivery:
 			dn: "DeliveryNote" = make_delivery_note(sales_order.name)
 			dn.update({
+				"shopify_settings": shopify_settings.name,
 				"shopify_order_id": shopify_order.get("id"),
-				"shopify_order_number": shopify_order.get("name"),
+				"shopify_order_number": shopify_order.get("order_number"),
 				"shopify_fulfillment_id": fulfillment.get("id"),
-				"set_posting_time": 1,
+				"set_posting_time": True,
 				"posting_date": getdate(fulfillment.get("created_at")),
 				"naming_series": shopify_settings.delivery_note_series or "DN-Shopify-",
 			})
