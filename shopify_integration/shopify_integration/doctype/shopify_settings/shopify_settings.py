@@ -3,7 +3,7 @@
 # For license information, please see license.txt
 
 from shopify.collection import PaginatedCollection, PaginatedIterator
-from shopify.resources import Order, Payouts, Product, Refund, Transactions, Webhook
+from shopify.resources import Order, Payouts, Product, Refund, Transactions, Variant, Webhook
 from shopify.session import Session as ShopifySession
 
 import frappe
@@ -68,6 +68,9 @@ class ShopifySettings(Document):
 
 	def get_refunds(self, *args, **kwargs):
 		return self.get_resources(Refund, *args, **kwargs)
+
+	def get_variants(self, *args, **kwargs):
+		return self.get_resources(Variant, *args, **kwargs)
 
 	def get_webhooks(self, *args, **kwargs):
 		return self.get_resources(Webhook, *args, **kwargs)

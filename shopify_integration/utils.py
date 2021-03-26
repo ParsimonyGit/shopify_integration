@@ -87,8 +87,8 @@ def get_shopify_document(doctype: str, order: "Order" = None, order_id: str = st
 	"""
 
 	if order:
-		shopify_order_id = cstr(order.get("id"))
-		shopify_order_number = cstr(order.get("order_number"))
+		shopify_order_id = cstr(order.id)
+		shopify_order_number = cstr(order.order_number)
 	elif order_id:
 		shopify_order_id = order_id
 		shopify_order_number = None

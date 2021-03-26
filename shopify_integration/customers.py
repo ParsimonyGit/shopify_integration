@@ -1,30 +1,39 @@
+from typing import TYPE_CHECKING
+
 import frappe
 from frappe import _
 from frappe.utils import cstr
 
+if TYPE_CHECKING:
+	import shopify
+	from erpnext.selling.doctype.customer.customer import Customer
+	from shopify import Address, Order
+	ShopifyCustomer = shopify.Customer
 
-def validate_customer(shop_name, shopify_order):
-	customer_id = shopify_order.get("customer", {}).get("id")
+
+def validate_customer(shop_name: str, shopify_order: "Order"):
+	customer = shopify_order.attributes.get("customer", frappe._dict())
+	customer_id = customer.id
 	if customer_id and not frappe.db.get_value("Customer", {"shopify_customer_id": customer_id}, "name"):
-		create_customer(shop_name, shopify_order.get("customer"))
+		create_customer(shop_name, customer)
 
 
-def create_customer(shop_name, shopify_customer):
+def create_customer(shop_name: str, shopify_customer: "ShopifyCustomer"):
 	from frappe.utils.nestedset import get_root_of
 
-	if shopify_customer.get("first_name"):
-		first_name = cstr(shopify_customer.get("first_name"))
-		last_name = cstr(shopify_customer.get("last_name"))
+	if shopify_customer.attributes.get("first_name"):
+		first_name = cstr(shopify_customer.first_name)
+		last_name = cstr(shopify_customer.last_name)
 		cust_name = f"{first_name} {last_name}"
 	else:
-		cust_name = shopify_customer.get("email")
+		cust_name = shopify_customer.email
 
 	try:
-		customer = frappe.get_doc({
+		customer: "Customer" = frappe.get_doc({
 			"doctype": "Customer",
-			"name": shopify_customer.get("id"),
+			"name": shopify_customer.id,
 			"customer_name": cust_name,
-			"shopify_customer_id": shopify_customer.get("id"),
+			"shopify_customer_id": shopify_customer.id,
 			"customer_group": frappe.db.get_value("Shopify Settings", shop_name, "customer_group"),
 			"territory": get_root_of("Territory"),
 			"customer_type": _("Individual")
@@ -40,26 +49,27 @@ def create_customer(shop_name, shopify_customer):
 		raise e
 
 
-def create_customer_address(customer, shopify_customer):
-	if not shopify_customer.get("addresses"):
+def create_customer_address(customer: "Customer", shopify_customer: "ShopifyCustomer"):
+	if not shopify_customer.attributes.get("addresses"):
 		return
 
-	for i, address in enumerate(shopify_customer.get("addresses")):
+	address: "Address"
+	for i, address in enumerate(shopify_customer.addresses):
 		address_title, address_type = get_address_title_and_type(customer.customer_name, i)
 		try:
 			frappe.get_doc({
 				"doctype": "Address",
-				"shopify_address_id": address.get("id"),
+				"shopify_address_id": address.id,
 				"address_title": address_title,
 				"address_type": address_type,
-				"address_line1": address.get("address1") or "Address 1",
-				"address_line2": address.get("address2"),
-				"city": address.get("city") or "City",
-				"state": address.get("province"),
-				"pincode": address.get("zip"),
-				"country": address.get("country"),
-				"phone": address.get("phone"),
-				"email_id": shopify_customer.get("email"),
+				"address_line1": address.address1 or "Address 1",
+				"address_line2": address.address2,
+				"city": address.city or "City",
+				"state": address.province,
+				"pincode": address.zip,
+				"country": address.country,
+				"phone": address.phone,
+				"email_id": shopify_customer.email,
 				"links": [{
 					"link_doctype": "Customer",
 					"link_name": customer.name

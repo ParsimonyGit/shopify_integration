@@ -40,11 +40,11 @@ def prepare_sales_invoice(shop_name: str, order: "Order", log_id: str = str()):
 		if sales_order:
 			sales_order: "SalesOrder"
 			create_sales_invoice(shop_name, order, sales_order)
-			make_shopify_log(status="Success", response_data=order)
+			make_shopify_log(status="Success", response_data=order.to_dict())
 		else:
-			make_shopify_log(status="Skipped", response_data=order)
+			make_shopify_log(status="Skipped", response_data=order.to_dict())
 	except Exception as e:
-		make_shopify_log(status="Error", response_data=order, exception=e, rollback=True)
+		make_shopify_log(status="Error", response_data=order.to_dict(), exception=e, rollback=True)
 
 
 def create_shopify_invoice(
@@ -67,19 +67,23 @@ def create_shopify_invoice(
 		SalesInvoice: The created Sales Invoice document, if any, otherwise None.
 	"""
 
-	if not shopify_order.get("financial_status") in ["paid", "partially_refunded", "refunded"]:
+	if not shopify_order.attributes.get("financial_status") in ["paid", "partially_refunded", "refunded"]:
 		return
 
 	frappe.flags.log_id = log_id
 	try:
 		sales_invoice = create_sales_invoice(shop_name, shopify_order, sales_order)
 		if sales_invoice:
-			create_sales_return(shop_name, shopify_order.get("id"), shopify_order.get("financial_status"),
-				sales_invoice)
+			create_sales_return(
+				shop_name=shop_name,
+				shopify_order_id=shopify_order.id,
+				shopify_financial_status=shopify_order.attributes.get("financial_status"),
+				sales_invoice=sales_invoice
+			)
 	except Exception as e:
-		make_shopify_log(status="Error", response_data=shopify_order, exception=e)
+		make_shopify_log(status="Error", response_data=shopify_order.to_dict(), exception=e)
 	else:
-		make_shopify_log(status="Success", response_data=shopify_order)
+		make_shopify_log(status="Success", response_data=shopify_order.to_dict())
 		return sales_invoice
 
 
@@ -105,8 +109,8 @@ def create_sales_invoice(shop_name: str, shopify_order: "Order", sales_order: "S
 		existing_invoice: "SalesInvoice"
 		frappe.db.set_value("Sales Invoice", existing_invoice.name, {
 			"shopify_settings": shopify_settings.name,
-			"shopify_order_id": shopify_order.get("id"),
-			"shopify_order_number": shopify_order.get("order_number")
+			"shopify_order_id": shopify_order.id,
+			"shopify_order_number": shopify_order.attributes.get("order_number")
 		})
 		return existing_invoice
 
@@ -114,10 +118,10 @@ def create_sales_invoice(shop_name: str, shopify_order: "Order", sales_order: "S
 		sales_invoice: "SalesInvoice" = make_sales_invoice(sales_order.name, ignore_permissions=True)
 		sales_invoice.update({
 			"shopify_settings": shopify_settings.name,
-			"shopify_order_id": shopify_order.get("id"),
-			"shopify_order_number": shopify_order.get("order_number"),
+			"shopify_order_id": shopify_order.id,
+			"shopify_order_number": shopify_order.attributes.get("order_number"),
 			"set_posting_time": True,
-			"posting_date": getdate(shopify_order.get("created_at")),
+			"posting_date": getdate(shopify_order.attributes.get("created_at")),
 			"naming_series": shopify_settings.sales_invoice_series or "SI-Shopify-"
 		})
 

@@ -11,7 +11,8 @@ from shopify_integration.utils import get_shopify_document
 if TYPE_CHECKING:
 	from erpnext.selling.doctype.sales_order.sales_order import SalesOrder
 	from erpnext.stock.doctype.delivery_note.delivery_note import DeliveryNote
-	from shopify import Order
+	from erpnext.stock.doctype.delivery_note_item.delivery_note_item import DeliveryNoteItem
+	from shopify import Fulfillment, LineItem, Order
 	from shopify_integration.shopify_integration.doctype.shopify_settings.shopify_settings import ShopifySettings
 
 
@@ -53,7 +54,7 @@ def create_shopify_delivery(
 		list: The list of created Delivery Note documents, if any, otherwise an empty list.
 	"""
 
-	if not shopify_order.get("fulfillments"):
+	if not shopify_order.attributes.get("fulfillments"):
 		return []
 	if not sales_order:
 		sales_order = get_shopify_document(doctype="Sales Order", order=shopify_order)
@@ -64,10 +65,10 @@ def create_shopify_delivery(
 	try:
 		delivery_notes = create_delivery_notes(shop_name, shopify_order, sales_order)
 	except Exception as e:
-		make_shopify_log(status="Error", response_data=shopify_order, exception=e, rollback=rollback)
+		make_shopify_log(status="Error", response_data=shopify_order.to_dict(), exception=e, rollback=rollback)
 		return []
 	else:
-		make_shopify_log(status="Success", response_data=shopify_order)
+		make_shopify_log(status="Success", response_data=shopify_order.to_dict())
 		return delivery_notes
 
 
@@ -93,23 +94,24 @@ def create_delivery_notes(
 		return []
 
 	delivery_notes = []
-	for fulfillment in shopify_order.get("fulfillments"):
+	fulfillment: "Fulfillment"
+	for fulfillment in shopify_order.attributes.get("fulfillments"):
 		existing_delivery = frappe.db.get_value("Delivery Note",
-			{"shopify_fulfillment_id": fulfillment.get("id")}, "name")
+			{"shopify_fulfillment_id": fulfillment.id}, "name")
 
 		if not existing_delivery:
 			dn: "DeliveryNote" = make_delivery_note(sales_order.name)
 			dn.update({
 				"shopify_settings": shopify_settings.name,
-				"shopify_order_id": shopify_order.get("id"),
-				"shopify_order_number": shopify_order.get("order_number"),
-				"shopify_fulfillment_id": fulfillment.get("id"),
+				"shopify_order_id": shopify_order.id,
+				"shopify_order_number": shopify_order.attributes.get("order_number"),
+				"shopify_fulfillment_id": fulfillment.id,
 				"set_posting_time": True,
-				"posting_date": getdate(fulfillment.get("created_at")),
+				"posting_date": getdate(fulfillment.attributes.get("created_at")),
 				"naming_series": shopify_settings.delivery_note_series or "DN-Shopify-",
 			})
 
-			update_fulfillment_items(dn.items, fulfillment.get("line_items"))
+			update_fulfillment_items(dn.items, fulfillment.attributes.get("line_items"))
 
 			dn.flags.ignore_mandatory = True
 			dn.save()
@@ -120,9 +122,12 @@ def create_delivery_notes(
 	return delivery_notes
 
 
-def update_fulfillment_items(dn_items, fulfillment_items):
+def update_fulfillment_items(
+	dn_items: List["DeliveryNoteItem"],
+	fulfillment_items: List["LineItem"]
+):
 	for dn_item in dn_items:
 		for item in fulfillment_items:
 			if get_item_code(item) == dn_item.item_code:
 				# TODO: figure out a better way to add items without setting valuation rate to zero
-				dn_item.update({"qty": item.get("quantity"), "allow_zero_valuation_rate": 1})
+				dn_item.update({"qty": item.attributes.get("quantity"), "allow_zero_valuation_rate": 1})

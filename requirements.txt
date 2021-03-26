@@ -1,3 +1,1 @@
-frappe
-erpnext
-ShopifyAPI==8.2.0
+ShopifyAPI==8.4.0

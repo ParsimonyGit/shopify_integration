@@ -173,7 +173,7 @@ def create_shopify_payout(shopify_settings: "ShopifySettings", payout: "Payouts"
 	for transaction in payout_transactions:
 		shopify_order_id = transaction.source_order_id
 
-		order_financial_status = None
+		order_financial_status = sales_order = sales_invoice = delivery_note = None
 		if shopify_order_id:
 			orders = shopify_settings.get_orders(shopify_order_id)
 			if not orders:
@@ -181,12 +181,12 @@ def create_shopify_payout(shopify_settings: "ShopifySettings", payout: "Payouts"
 			order = orders[0]
 			order_financial_status = frappe.unscrub(order.financial_status)
 
+			sales_order = get_shopify_document(doctype="Sales Order", order_id=shopify_order_id)
+			sales_invoice = get_shopify_document(doctype="Sales Invoice", order_id=shopify_order_id)
+			delivery_note = get_shopify_document(doctype="Delivery Note", order_id=shopify_order_id)
+
 		total_amount = -flt(transaction.amount) if transaction.type == "payout" else flt(transaction.amount)
 		net_amount = -flt(transaction.net) if transaction.type == "payout" else flt(transaction.net)
-
-		sales_order = get_shopify_document(doctype="Sales Order", order_id=shopify_order_id)
-		sales_invoice = get_shopify_document(doctype="Sales Invoice", order_id=shopify_order_id)
-		delivery_note = get_shopify_document(doctype="Delivery Note", order_id=shopify_order_id)
 
 		payout_doc.append("transactions", {
 			"transaction_id": transaction.id,

@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 
 import frappe
 from frappe.utils import flt, nowdate
@@ -8,7 +8,8 @@ from shopify_integration.utils import get_shopify_document, get_tax_account_head
 
 if TYPE_CHECKING:
 	from erpnext.selling.doctype.sales_order.sales_order import SalesOrder
-	from shopify import Order
+	from shopify import LineItem, Order
+	from shopify_integration.shopify_integration.doctype.shopify_settings.shopify_settings import ShopifySettings
 
 
 def create_shopify_documents(shop_name: str, order: "Order", log_id: str = str()):
@@ -60,7 +61,7 @@ def create_shopify_order(shop_name: str, shopify_order: "Order", log_id: str = s
 	existing_so = get_shopify_document(doctype="Sales Order", order=shopify_order)
 	if existing_so:
 		existing_so: "SalesOrder"
-		make_shopify_log(status="Skipped", response_data=shopify_order)
+		make_shopify_log(status="Skipped", response_data=shopify_order.to_dict())
 		return existing_so
 
 	try:
@@ -68,9 +69,9 @@ def create_shopify_order(shop_name: str, shopify_order: "Order", log_id: str = s
 		validate_item(shop_name, shopify_order)
 		sales_order = create_sales_order(shop_name, shopify_order)
 	except Exception as e:
-		make_shopify_log(status="Error", response_data=shopify_order, exception=e)
+		make_shopify_log(status="Error", response_data=shopify_order.to_dict(), exception=e)
 	else:
-		make_shopify_log(status="Success", response_data=shopify_order)
+		make_shopify_log(status="Success", response_data=shopify_order.to_dict())
 		return sales_order
 
 
@@ -86,24 +87,26 @@ def create_sales_order(shop_name: str, shopify_order: "Order"):
 		SalesOrder: The created Sales Order document, if any, otherwise None.
 	"""
 
-	shopify_settings = frappe.get_doc("Shopify Settings", shop_name)
-	customer = frappe.db.get_value("Customer", {"shopify_customer_id": shopify_order.get("customer", {}).get("id")}, "name")
+	shopify_settings: "ShopifySettings" = frappe.get_doc("Shopify Settings", shop_name)
+	shopify_customer = shopify_order.attributes.get("customer", frappe._dict())
+	shopify_customer_id = shopify_customer.id
+	customer = frappe.db.get_value("Customer", {"shopify_customer_id": shopify_customer_id}, "name")
 
 	sales_order: "SalesOrder" = frappe.get_doc({
 		"doctype": "Sales Order",
 		"naming_series": shopify_settings.sales_order_series or "SO-Shopify-",
 		"shopify_settings": shopify_settings.name,
-		"shopify_order_id": shopify_order.get("id"),
-		"shopify_order_number": shopify_order.get("order_number"),
+		"shopify_order_id": shopify_order.id,
+		"shopify_order_number": shopify_order.attributes.get("order_number"),
 		"customer": customer or shopify_settings.default_customer,
 		"delivery_date": nowdate(),
 		"company": shopify_settings.company,
 		"selling_price_list": shopify_settings.price_list,
 		"ignore_pricing_rule": 1,
-		"items": get_order_items(shopify_order.get("line_items"), shopify_settings.warehouse),
+		"items": get_order_items(shopify_order.attributes.get("line_items"), shopify_settings.warehouse),
 		"taxes": get_order_taxes(shopify_order, shopify_settings),
 		"apply_discount_on": "Grand Total",
-		"discount_amount": flt(shopify_order.get("total_discounts")),
+		"discount_amount": flt(shopify_order.attributes.get("total_discounts")),
 	})
 
 	sales_order.flags.ignore_mandatory = True
@@ -113,7 +116,7 @@ def create_sales_order(shop_name: str, shopify_order: "Order"):
 	return sales_order
 
 
-def get_order_items(shopify_order_items, warehouse):
+def get_order_items(shopify_order_items: List["LineItem"], warehouse: str):
 	from shopify_integration.products import get_item_code
 
 	items = []
@@ -121,39 +124,44 @@ def get_order_items(shopify_order_items, warehouse):
 		item_code = get_item_code(shopify_item)
 		items.append({
 			"item_code": item_code,
-			"item_name": shopify_item.get("name"),
-			"rate": shopify_item.get("price"),
+			"item_name": shopify_item.attributes.get("name"),
+			"rate": shopify_item.attributes.get("price"),
 			"delivery_date": nowdate(),
-			"qty": shopify_item.get("quantity"),
-			"stock_uom": shopify_item.get("uom") or "Nos",
+			"qty": shopify_item.attributes.get("quantity"),
+			"stock_uom": shopify_item.attributes.get("uom") or "Nos",
 			"warehouse": warehouse
 		})
 	return items
 
 
-def get_order_taxes(shopify_order, shopify_settings):
+def get_order_taxes(shopify_order: "Order", shopify_settings: "ShopifySettings"):
 	taxes = []
 
 	# add shipping charges
-	for shipping in shopify_order.get("shipping_lines"):
-		if shipping.get("price"):
+	for shipping in shopify_order.attributes.get("shipping_lines"):
+		if shipping.attributes.get("price"):
 			taxes.append({
 				"charge_type": "Actual",
 				"account_head": get_tax_account_head(shopify_settings.name, "shipping"),
-				"description": shipping.get("title"),
-				"tax_amount": shipping.get("price"),
+				"description": shipping.attributes.get("title"),
+				"tax_amount": shipping.attributes.get("price"),
 				"cost_center": shopify_settings.cost_center
 			})
 
 	# add additional taxes and fees
-	for tax in shopify_order.get("tax_lines"):
+	for tax in shopify_order.attributes.get("tax_lines"):
+		tax_description = "{0} - {1}%".format(
+			tax.attributes.get("title"),
+			tax.attributes.get("rate") * 100.0
+		)
+
 		taxes.append({
 			"charge_type": "Actual",
 			"account_head": get_tax_account_head(shopify_settings.name, "tax"),
-			"description": "{0} - {1}%".format(tax.get("title"), tax.get("rate") * 100.0),
-			"tax_amount": tax.get("price"),
+			"description": tax_description,
+			"tax_amount": tax.attributes.get("price"),
 			"cost_center": shopify_settings.cost_center,
-			"included_in_print_rate": 1 if shopify_order.get("taxes_included") else 0,
+			"included_in_print_rate": shopify_order.attributes.get("taxes_included")
 		})
 
 	return taxes
@@ -186,7 +194,7 @@ def cancel_shopify_order(shop_name: str, order: "Order", log_id: str = str()):
 				doc.flags.ignore_links = True
 				doc.cancel()
 			except Exception as e:
-				make_shopify_log(status="Error", response_data=order,
+				make_shopify_log(status="Error", response_data=order.to_dict(),
 					exception=e, rollback=True)
 
 		# update the financial status in all linked Shopify Payouts
