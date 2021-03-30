@@ -54,7 +54,8 @@ def create_shopify_invoice(
 	log_id: str = str()
 ):
 	"""
-	Create a Sales Invoice document for a Shopify order.
+	Create a Sales Invoice document for a Shopify order. If the Shopify order is refunded
+	and a submitted Sales Invoice exists, make a sales return against the invoice.
 
 	Args:
 		shop_name (str): The name of the Shopify configuration for the store.
@@ -73,7 +74,7 @@ def create_shopify_invoice(
 	frappe.flags.log_id = log_id
 	try:
 		sales_invoice = create_sales_invoice(shop_name, shopify_order, sales_order)
-		if sales_invoice:
+		if sales_invoice and sales_invoice.docstatus == 1:
 			create_sales_return(
 				shop_name=shop_name,
 				shopify_order_id=shopify_order.id,
@@ -97,7 +98,7 @@ def create_sales_invoice(shop_name: str, shopify_order: "Order", sales_order: "S
 		sales_order (SalesOrder): The reference Sales Order document for the Shopify order.
 
 	Returns:
-		SalesInvoice: The created Sales Invoice document, if any, otherwise None.
+		SalesInvoice: The created or existing Sales Invoice document, if any, otherwise None.
 	"""
 
 	shopify_settings: "ShopifySettings" = frappe.get_doc("Shopify Settings", shop_name)

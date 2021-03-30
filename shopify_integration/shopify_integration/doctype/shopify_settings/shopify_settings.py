@@ -38,14 +38,14 @@ class ShopifySettings(Document):
 		return ShopifySession(*args)
 
 	def get_resources(self, resource, *args, **kwargs):
-		# TODO: figure out a way to nicely handle limits;
-		# currently, shopify's PaginatedIterator ignores limits during retrieval
-
 		with self.get_shopify_session(temp=True):
 			resources = resource.find(*args, **kwargs)
 
+			if "limit" in kwargs:
+				return resources if isinstance(resources, PaginatedCollection) else [resources]
+
 			if isinstance(resources, PaginatedCollection):
-				# Shopify's API limits responses to 50 per page;
+				# Shopify's API limits responses to 50 per page by default;
 				# we keep calling to retrieve all the resource documents
 				paged_resources = PaginatedIterator(resources)
 				return [resource for page in paged_resources for resource in page]
