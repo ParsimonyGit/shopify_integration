@@ -113,9 +113,12 @@ def create_missing_orders(shopify_settings: "ShopifySettings", shopify_order_ids
 	"""
 
 	for shopify_order_id in shopify_order_ids:
-		sales_order = get_shopify_document(doctype="Sales Order", order_id=shopify_order_id)
-		sales_invoice = get_shopify_document(doctype="Sales Invoice", order_id=shopify_order_id)
-		delivery_note = get_shopify_document(doctype="Delivery Note", order_id=shopify_order_id)
+		sales_order = get_shopify_document(shop_name=shopify_settings.name,
+			doctype="Sales Order", order_id=shopify_order_id)
+		sales_invoice = get_shopify_document(shop_name=shopify_settings.name,
+			doctype="Sales Invoice", order_id=shopify_order_id)
+		delivery_note = get_shopify_document(shop_name=shopify_settings.name,
+			doctype="Delivery Note", order_id=shopify_order_id)
 
 		if all([sales_order, sales_invoice, delivery_note]):
 			continue
@@ -134,7 +137,8 @@ def create_missing_orders(shopify_settings: "ShopifySettings", shopify_order_ids
 			sales_order: "SalesOrder"
 			if not sales_invoice:
 				create_shopify_invoice(shopify_settings.name, order, sales_order)
-			if not delivery_note:
+			if not delivery_note or sales_order.per_delivered < 100:
+				# multiple deliveries can be made against a single order
 				create_shopify_delivery(shopify_settings.name, order, sales_order)
 
 
@@ -181,9 +185,12 @@ def create_shopify_payout(shopify_settings: "ShopifySettings", payout: "Payouts"
 			order = orders[0]
 			order_financial_status = frappe.unscrub(order.financial_status)
 
-			sales_order = get_shopify_document(doctype="Sales Order", order_id=shopify_order_id)
-			sales_invoice = get_shopify_document(doctype="Sales Invoice", order_id=shopify_order_id)
-			delivery_note = get_shopify_document(doctype="Delivery Note", order_id=shopify_order_id)
+			sales_order = get_shopify_document(shop_name=shopify_settings.name,
+				doctype="Sales Order", order_id=shopify_order_id)
+			sales_invoice = get_shopify_document(shop_name=shopify_settings.name,
+				doctype="Sales Invoice", order_id=shopify_order_id)
+			delivery_note = get_shopify_document(shop_name=shopify_settings.name,
+				doctype="Delivery Note", order_id=shopify_order_id)
 
 		total_amount = -flt(transaction.amount) if transaction.type == "payout" else flt(transaction.amount)
 		net_amount = -flt(transaction.net) if transaction.type == "payout" else flt(transaction.net)

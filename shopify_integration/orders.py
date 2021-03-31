@@ -58,7 +58,7 @@ def create_shopify_order(shop_name: str, shopify_order: "Order", log_id: str = s
 
 	frappe.flags.log_id = log_id
 
-	existing_so = get_shopify_document(doctype="Sales Order", order=shopify_order)
+	existing_so = get_shopify_document(shop_name=shop_name, doctype="Sales Order", order=shopify_order)
 	if existing_so:
 		existing_so: "SalesOrder"
 		make_shopify_log(status="Skipped", response_data=shopify_order.to_dict())
@@ -183,7 +183,7 @@ def cancel_shopify_order(shop_name: str, order: "Order", log_id: str = str()):
 
 	doctypes = ["Delivery Note", "Sales Invoice", "Sales Order"]
 	for doctype in doctypes:
-		doc = get_shopify_document(doctype=doctype, order=order)
+		doc = get_shopify_document(shop_name=shop_name, doctype=doctype, order=order)
 		if not doc:
 			continue
 

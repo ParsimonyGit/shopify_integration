@@ -1,3 +1,4 @@
+import frappe
 from frappe import _
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 
@@ -43,8 +44,10 @@ def setup_custom_fields(args=None):
 			dict(fieldname="shopify_variant_id", label="Shopify Variant ID",
 				fieldtype="Data", insert_after="item_code", read_only=1, print_hide=1,
 				translatable=0),
+			dict(fieldname="shopify_sku", label="Shopify SKU", fieldtype="Data",
+				insert_after="shopify_variant_id", read_only=1, print_hide=1, translatable=0),
 			dict(fieldname="disabled_on_shopify", label="Disabled on Shopify",
-				fieldtype="Check", insert_after="disabled", read_only=1, print_hide=1),
+				fieldtype="Check", insert_after="shopify_sku", read_only=1, print_hide=1),
 			dict(fieldname="marketplace_item_group", label="Marketplace Item Group",
 				fieldtype="Data", insert_after="item_group", read_only=1, print_hide=1,
 				translatable=0),
@@ -112,5 +115,19 @@ def setup_custom_fields(args=None):
 				read_only=1, print_hide=1, translatable=0)
 		]
 	}
+
+	# ref: https://github.com/ParsimonyGit/shipstation_integration/
+	# check if the Shipstation app is installed on the current site;
+	# `frappe.db.table_exists` returns a false positive if any other
+	# site on the bench has the Shipstation app installed instead
+	if "shipstation_integration" in frappe.get_installed_apps():
+		custom_fields.update({
+			"Shipstation Store": [
+				dict(fieldname="sb_shopify", label="Shopify", fieldtype="Section Break",
+					insert_after="expense_account", read_only=1),
+				dict(fieldname="shopify_store", label="Shopify Store", fieldtype="Link",
+					options="Shopify Settings", insert_after="sb_shopify", print_hide=1)
+			]
+		})
 
 	create_custom_fields(custom_fields)

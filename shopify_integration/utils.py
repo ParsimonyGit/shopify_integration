@@ -73,18 +73,29 @@ def get_tax_account_head(shop_name: str, tax_type: str):
 	return tax_account
 
 
-def get_shopify_document(doctype: str, order: "Order" = None, order_id: str = str()):
+def get_shopify_document(
+	shop_name: str,
+	doctype: str,
+	order: "Order" = None,
+	order_id: str = str()
+):
 	"""
 	Check if a Shopify order exists, including references from other apps.
 
 	Args:
+		shop_name (str): The name of the Shopify configuration for the store.
 		doctype (str): The doctype records to check against.
 		order (Order, optional): The Shopify order data.
 		order_id (str, optional): The Shopify order ID.
 
 	Returns:
-		(BaseDocument, False): The document object, if it exists, otherwise False.
+		list(BaseDocument) | BaseDocument: The document object if a Shipstation
+			order exists for the Shopify order, otherwise an empty list. If
+			Delivery Notes need to be checked, then all found delivery documents
+			are returned.
 	"""
+
+	shopify_docs = []
 
 	if order:
 		shopify_order_id = cstr(order.id)
@@ -93,21 +104,30 @@ def get_shopify_document(doctype: str, order: "Order" = None, order_id: str = st
 		shopify_order_id = order_id
 		shopify_order_number = None
 
-	# multiple deliveries can be made against a single order
-	if doctype != "Delivery Note":
-		existing_doc = frappe.db.get_value(doctype,
-			{"docstatus": ["<", 2], "shopify_order_id": shopify_order_id}, "name")
-		if existing_doc:
-			return frappe.get_doc(doctype, existing_doc)
+	existing_docs = frappe.db.get_all(doctype,
+		filters={
+			"docstatus": ["<", 2],
+			"shopify_settings": shop_name,
+		},
+		or_filters={
+			"shopify_order_id": shopify_order_id,
+			"shopify_order_number": shopify_order_number
+		})
+
+	if existing_docs:
+		# multiple deliveries can be made against a single order
+		if doctype == "Delivery Note":
+			return [frappe.get_doc(doctype, doc.name) for doc in existing_docs]
+		return frappe.get_doc(doctype, existing_docs[0].name)
 
 	# if multiple integrations are active and linked to each other, such as
 	# Shipstation and Shopify, use the Shopify order number to determine if
-	# an order already exists from the other integration
+	# an order exists from the other integration
 	if shopify_order_number:
 		validate_hook = frappe.get_hooks("validate_existing_shopify_document")
 		if validate_hook:
-			existing_docs = frappe.get_attr(validate_hook[0])(doctype, shopify_order_number)
+			existing_docs = frappe.get_attr(validate_hook[0])(shop_name, doctype, shopify_order_number)
 			if existing_docs:
 				return existing_docs
 
-	return False
+	return shopify_docs

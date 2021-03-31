@@ -105,7 +105,10 @@ def make_item(
 	shopify_settings: "ShopifySettings",
 	shopify_item: Union[Product, Variant]
 ):
-	attributes = create_item_attributes(shopify_item)
+	attributes = []
+	if isinstance(shopify_item, Product):
+		attributes = create_product_attributes(shopify_item)
+
 	sync_item(
 		shopify_settings=shopify_settings,
 		shopify_item=shopify_item,
@@ -118,16 +121,7 @@ def make_item(
 	)
 
 
-def has_variants(shopify_item: Product):
-	options = shopify_item.attributes.get("options", [])
-	if not options:
-		return False
-	if "Default Title" not in options[0].attributes.get("values"):
-		return True
-	return False
-
-
-def create_item_attributes(shopify_item: Product) -> List[Dict]:
+def create_product_attributes(shopify_item: Product) -> List[Dict]:
 	if not has_variants(shopify_item):
 		return []
 
@@ -161,6 +155,15 @@ def create_item_attributes(shopify_item: Product) -> List[Dict]:
 				})
 
 	return item_attributes
+
+
+def has_variants(shopify_item: Product):
+	options = shopify_item.attributes.get("options", [])
+	if not options:
+		return False
+	if "Default Title" not in options[0].attributes.get("values"):
+		return True
+	return False
 
 
 def update_item_attribute_values(item_attr: "ItemAttribute", values: List[str]):
@@ -234,7 +237,7 @@ def sync_item(
 		"marketplace_item_group": get_item_group(shopify_item.attributes.get("product_type")),
 		"has_variants": item_has_variants,
 		"stock_uom": WEIGHT_UOM_MAP.get(shopify_item.attributes.get("uom")) or _("Nos"),
-		"stock_keeping_unit": shopify_item.attributes.get("sku") or get_sku(shopify_item),
+		"shopify_sku": shopify_item.attributes.get("sku"),
 		"default_warehouse": shopify_settings.warehouse,
 		"weight_uom": WEIGHT_UOM_MAP.get(shopify_item.attributes.get("weight_unit")),
 		"weight_per_unit": shopify_item.attributes.get("weight"),
@@ -395,16 +398,6 @@ def get_item_group(product_type: str = str()):
 			return item_group.name
 		return product_type
 	return parent_item_group
-
-
-def get_sku(shopify_item: Union[Product, Variant]):
-	sku = str()
-	if isinstance(shopify_item, Product):
-		if shopify_item.attributes.get("variants"):
-			sku = shopify_item.attributes.get("variants")[0].attributes.get("sku")
-	elif isinstance(shopify_item, Variant):
-		sku = shopify_item.attributes.get("sku")
-	return sku
 
 
 def add_to_price_list(

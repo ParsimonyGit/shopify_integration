@@ -32,10 +32,10 @@ def prepare_sales_invoice(shop_name: str, order: "Order", log_id: str = str()):
 	frappe.flags.log_id = log_id
 
 	try:
-		sales_order = get_shopify_document(doctype="Sales Order", order=order)
+		sales_order = get_shopify_document(shop_name=shop_name, doctype="Sales Order", order=order)
 		if not sales_order:
 			create_shopify_documents(shop_name, order, log_id)
-			sales_order = get_shopify_document(doctype="Sales Order", order=order)
+			sales_order = get_shopify_document(shop_name=shop_name, doctype="Sales Order", order=order)
 
 		if sales_order:
 			sales_order: "SalesOrder"
@@ -105,7 +105,7 @@ def create_sales_invoice(shop_name: str, shopify_order: "Order", sales_order: "S
 	if not cint(shopify_settings.sync_sales_invoice):
 		return
 
-	existing_invoice = get_shopify_document(doctype="Sales Invoice", order=shopify_order)
+	existing_invoice = get_shopify_document(shop_name=shop_name, doctype="Sales Invoice", order=shopify_order)
 	if existing_invoice:
 		existing_invoice: "SalesInvoice"
 		frappe.db.set_value("Sales Invoice", existing_invoice.name, {

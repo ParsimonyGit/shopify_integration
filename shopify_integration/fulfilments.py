@@ -57,7 +57,7 @@ def create_shopify_delivery(
 	if not shopify_order.attributes.get("fulfillments"):
 		return []
 	if not sales_order:
-		sales_order = get_shopify_document(doctype="Sales Order", order=shopify_order)
+		sales_order = get_shopify_document(shop_name=shop_name, doctype="Sales Order", order=shopify_order)
 	if not sales_order or sales_order.docstatus != 1:
 		return []
 
