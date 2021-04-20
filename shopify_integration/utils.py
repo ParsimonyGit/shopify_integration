@@ -117,17 +117,7 @@ def get_shopify_document(
 	if existing_docs:
 		# multiple deliveries can be made against a single order
 		if doctype == "Delivery Note":
-			return [frappe.get_doc(doctype, doc.name) for doc in existing_docs]
-		return frappe.get_doc(doctype, existing_docs[0].name)
-
-	# if multiple integrations are active and linked to each other, such as
-	# Shipstation and Shopify, use the Shopify order number to determine if
-	# an order exists from the other integration
-	if shopify_order_number:
-		validate_hook = frappe.get_hooks("validate_existing_shopify_document")
-		if validate_hook:
-			existing_docs = frappe.get_attr(validate_hook[0])(shop_name, doctype, shopify_order_number)
-			if existing_docs:
-				return existing_docs
+			shopify_docs = [frappe.get_doc(doctype, doc.name) for doc in existing_docs]
+		shopify_docs = frappe.get_doc(doctype, existing_docs[0].name)
 
 	return shopify_docs

@@ -124,9 +124,12 @@ def setup_custom_fields(args=None):
 		custom_fields.update({
 			"Shipstation Store": [
 				dict(fieldname="sb_shopify", label="Shopify", fieldtype="Section Break",
-					insert_after="expense_account", read_only=1),
+					insert_after="amazon_marketplace", read_only=1),
+				dict(fieldname="is_shopify_store", label="Is Shopify Store", fieldtype="Check",
+					insert_after="sb_shopify", read_only=1, print_hide=1),
 				dict(fieldname="shopify_store", label="Shopify Store", fieldtype="Link",
-					options="Shopify Settings", insert_after="sb_shopify", print_hide=1)
+					options="Shopify Settings", insert_after="is_shopify_store",
+					depends_on="eval:doc.is_shopify_store", print_hide=1)
 			]
 		})
 
