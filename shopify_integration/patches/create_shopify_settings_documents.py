@@ -34,23 +34,27 @@ def execute():
 	})
 	new_shop.insert(ignore_permissions=True)
 
-	# update Shopify sales documents and connect with new shop
-	for doctype in ["Sales Order", "Sales Invoice", "Delivery Note"]:
-		frappe.db.sql(f"""
-			UPDATE
-				`tab{doctype}`
-			SET
-				shopify_settings = %(shopify_settings)s
-		""", {
-			"shopify_settings": new_shop.name
-		})
+	# update Shopify Payout and linked Shopify documents
+	for payout in frappe.get_all("Shopify Payout"):
+		payout_doc = frappe.get_doc("Shopify Payout", payout.name)
+		payout_doc.shop_name = new_shop.name
 
-	# update Shopify Payouts and connect with new shop
-	frappe.db.sql("""
-		UPDATE
-			`tabShopify Payout`
-		SET
-			shop_name = %(shop_name)s
-	""", {
-		"shop_name": new_shop.name
-	})
+		for transaction in payout_doc.transactions:
+			if transaction.sales_order:
+				frappe.db.set_value("Sales Order", transaction.sales_order,
+					"shopify_settings", new_shop.name)
+			if transaction.sales_invoice:
+				frappe.db.set_value("Sales Invoice", transaction.sales_invoice,
+					"shopify_settings", new_shop.name)
+			if transaction.delivery_note:
+				frappe.db.set_value("Delivery Note", transaction.delivery_note,
+					"shopify_settings", new_shop.name)
+
+	# # ref: https://github.com/ParsimonyGit/shipstation_integration/
+	# update the "Is Shopify Store" check in Shipstation stores
+	if "shipstation_integration" in frappe.get_installed_apps():
+		mws_setup_marketplaces = frappe.get_all("Shipstation Store",
+			filters={"marketplace_name": "Shopify"})
+		for marketplace in mws_setup_marketplaces:
+			frappe.db.set_value("Shipstation Store", marketplace.name,
+				"is_shopify_store", True)
