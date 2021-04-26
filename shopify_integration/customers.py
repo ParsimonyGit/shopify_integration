@@ -50,36 +50,36 @@ def create_customer(shop_name: str, shopify_customer: "ShopifyCustomer"):
 
 
 def create_customer_address(customer: "Customer", shopify_customer: "ShopifyCustomer"):
-	if not shopify_customer.attributes.get("addresses"):
-		return
+	addresses = shopify_customer.attributes.get("addresses") or []
+
+	if not addresses:
+		default_address = shopify_customer.attributes.get("default_address")
+		if default_address:
+			addresses.append(default_address)
 
 	address: "Address"
-	for i, address in enumerate(shopify_customer.addresses):
-		address_title, address_type = get_address_title_and_type(customer.customer_name, i)
-		try:
-			frappe.get_doc({
-				"doctype": "Address",
-				"shopify_address_id": address.id,
-				"address_title": address_title,
-				"address_type": address_type,
-				"address_line1": address.address1 or "Address 1",
-				"address_line2": address.address2,
-				"city": address.city or "City",
-				"state": address.province,
-				"pincode": address.zip,
-				"country": address.country,
-				"phone": address.phone,
-				"email_id": shopify_customer.email,
-				"links": [{
-					"link_doctype": "Customer",
-					"link_name": customer.name
-				}]
-			}).insert(ignore_mandatory=True)
-		except Exception as e:
-			raise e
+	for index, address in enumerate(addresses):
+		frappe.get_doc({
+			"doctype": "Address",
+			"shopify_address_id": address.id,
+			"address_title": get_address_title(customer.customer_name, index),
+			"address_type": "Billing",
+			"address_line1": address.address1 or "Address 1",
+			"address_line2": address.address2,
+			"city": address.city or "City",
+			"state": address.province,
+			"pincode": address.zip,
+			"country": address.country,
+			"phone": address.phone,
+			"email_id": shopify_customer.email,
+			"links": [{
+				"link_doctype": "Customer",
+				"link_name": customer.name
+			}]
+		}).insert(ignore_mandatory=True)
 
 
-def get_address_title_and_type(customer_name, index):
+def get_address_title(customer_name: str, index: int):
 	address_type = _("Billing")
 	address_title = customer_name
 
@@ -87,4 +87,4 @@ def get_address_title_and_type(customer_name, index):
 	if frappe.db.exists("Address", address_name):
 		address_title = f"{customer_name.strip()}-{index}"
 
-	return address_title, address_type
+	return address_title
