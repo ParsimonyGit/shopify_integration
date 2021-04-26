@@ -78,6 +78,7 @@
    "fieldname": "last_sync_datetime",
    "fieldtype": "Datetime",
    "label": "Last Sync Datetime",
+   "no_copy": 1,
    "read_only": 1
   },
   {
@@ -124,6 +125,7 @@
    "fieldname": "webhooks",
    "fieldtype": "Table",
    "label": "Webhooks",
+   "no_copy": 1,
    "options": "Shopify Webhook Detail",
    "read_only": 1
   },
@@ -300,7 +302,7 @@
    "reqd": 1
   }
  ],
- "modified": "2021-03-25 08:27:22.587549",
+ "modified": "2021-04-26 04:08:26.693213",
  "modified_by": "Administrator",
  "module": "Shopify Integration",
  "name": "Shopify Settings",
