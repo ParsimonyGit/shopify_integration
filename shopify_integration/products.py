@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Dict, List, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
 from shopify import Product, Variant
 
@@ -51,6 +51,19 @@ def sync_items_from_shopify(shop_name: str):
 
 
 def validate_item(shop_name: str, shopify_order: "Order"):
+	"""
+	Ensure that a Shopify order's items exist before processing the order.
+
+	For every line item in the order, the order of priority for the reference field is:
+		- Product ID
+		- Variant ID
+		- Item Title
+
+	Args:
+		shop_name (str): The name of the Shopify configuration for the store.
+		shopify_order (Order): The Shopify order data.
+	"""
+
 	shopify_settings: "ShopifySettings" = frappe.get_doc("Shopify Settings", shop_name)
 	for shopify_item in shopify_order.attributes.get("line_items", []):
 		shopify_item: "LineItem"
@@ -79,11 +92,15 @@ def validate_item(shop_name: str, shopify_order: "Order"):
 					title=shopify_item.attributes.get("title")
 				)
 
+				if not shopify_products:
+					make_item_by_title(shopify_settings, line_item_title)
+					return
+
 				for product in shopify_products:
 					make_item(shopify_settings, product)
 
 
-def get_item_code(shopify_item: "LineItem"):
+def get_item_code(shopify_item: "LineItem") -> Optional[str]:
 	item_code = frappe.db.get_value("Item",
 		{"shopify_variant_id": shopify_item.attributes.get("variant_id")},
 		"item_code")
@@ -119,6 +136,27 @@ def make_item(
 		shopify_item=shopify_item,
 		attributes=attributes
 	)
+
+
+def make_item_by_title(shopify_settings: "ShopifySettings", line_item_title: str):
+	item_data = {
+		"doctype": "Item",
+		"is_stock_item": 1,
+		"item_code": line_item_title,
+		"item_name": line_item_title,
+		"description": line_item_title,
+		"shopify_description": line_item_title,
+		"item_group": shopify_settings.item_group,
+		"stock_uom": _("Nos"),
+		"default_warehouse": shopify_settings.warehouse,
+		"integration_doctype": "Shopify Settings",
+		"integration_doc": shopify_settings.name,
+		"item_defaults": [{
+			"company": get_default_company()
+		}]
+	}
+
+	frappe.get_doc(item_data).insert(ignore_permissions=True)
 
 
 def create_product_attributes(shopify_item: Product) -> List[Dict]:

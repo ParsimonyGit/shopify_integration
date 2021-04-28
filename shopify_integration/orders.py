@@ -98,7 +98,8 @@ def create_sales_order(shop_name: str, shopify_order: "Order"):
 		"shopify_order_id": shopify_order.id,
 		"shopify_order_number": shopify_order.attributes.get("order_number"),
 		"customer": customer or shopify_settings.default_customer,
-		"delivery_date": nowdate(),
+		"transaction_date": shopify_order.attributes.get("created_at"),
+		"delivery_date": shopify_order.attributes.get("created_at"),
 		"company": shopify_settings.company,
 		"selling_price_list": shopify_settings.price_list,
 		"ignore_pricing_rule": 1,
@@ -128,6 +129,7 @@ def get_order_items(shopify_order_items: List["LineItem"], warehouse: str):
 			"delivery_date": nowdate(),
 			"qty": shopify_item.attributes.get("quantity"),
 			"stock_uom": shopify_item.attributes.get("uom") or "Nos",
+			"conversion_factor": 1,
 			"warehouse": warehouse
 		})
 	return items

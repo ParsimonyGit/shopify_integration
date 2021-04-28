@@ -47,7 +47,7 @@ def setup_custom_fields(args=None):
 			dict(fieldname="shopify_sku", label="Shopify SKU", fieldtype="Data",
 				insert_after="shopify_variant_id", read_only=1, print_hide=1, translatable=0),
 			dict(fieldname="disabled_on_shopify", label="Disabled on Shopify",
-				fieldtype="Check", insert_after="shopify_sku", read_only=1, print_hide=1),
+				fieldtype="Check", insert_after="disabled", read_only=1, print_hide=1),
 			dict(fieldname="marketplace_item_group", label="Marketplace Item Group",
 				fieldtype="Data", insert_after="item_group", read_only=1, print_hide=1,
 				translatable=0),

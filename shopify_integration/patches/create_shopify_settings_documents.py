@@ -36,9 +36,9 @@ def execute():
 
 	# update Shopify Payout and linked Shopify documents
 	for payout in frappe.get_all("Shopify Payout"):
-		payout_doc = frappe.get_doc("Shopify Payout", payout.name)
-		payout_doc.shop_name = new_shop.name
+		frappe.db.set_value("Shopify Payout", payout.name, "shop_name", new_shop.name)
 
+		payout_doc = frappe.get_doc("Shopify Payout", payout.name)
 		for transaction in payout_doc.transactions:
 			if transaction.sales_order:
 				frappe.db.set_value("Sales Order", transaction.sales_order,
