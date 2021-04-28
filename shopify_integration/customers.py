@@ -5,16 +5,13 @@ from frappe import _
 from frappe.utils import cstr
 
 if TYPE_CHECKING:
-	import shopify
 	from erpnext.selling.doctype.customer.customer import Customer
-	from shopify import Address, Order
-	ShopifyCustomer = shopify.Customer
+	from shopify import Address, Customer as ShopifyCustomer, Order
 
 
 def validate_customer(shop_name: str, shopify_order: "Order"):
 	customer = shopify_order.attributes.get("customer", frappe._dict())
-	customer_id = customer.id
-	if customer_id and not frappe.db.get_value("Customer", {"shopify_customer_id": customer_id}, "name"):
+	if customer.id and not frappe.db.get_value("Customer", {"shopify_customer_id": customer.id}, "name"):
 		create_customer(shop_name, customer)
 
 

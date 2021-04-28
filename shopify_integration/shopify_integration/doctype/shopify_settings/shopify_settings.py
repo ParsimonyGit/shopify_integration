@@ -9,6 +9,7 @@ from shopify.session import Session as ShopifySession
 import frappe
 from frappe import _
 from frappe.model.document import Document
+from frappe.utils import get_datetime_str, get_first_day, today
 
 from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log import make_shopify_log
 
@@ -41,6 +42,9 @@ class ShopifySettings(Document):
 		with self.get_shopify_session(temp=True):
 			resources = resource.find(*args, **kwargs)
 
+			# if a limited number of documents are requested, don't keep looping;
+			# this is a side-effect from the way the library works, since it
+			# doesn't process the "limit" keyword
 			if "limit" in kwargs:
 				return resources if isinstance(resources, PaginatedCollection) else [resources]
 
@@ -80,10 +84,15 @@ class ShopifySettings(Document):
 		from shopify_integration.products import sync_items_from_shopify
 		frappe.enqueue(method=sync_items_from_shopify, queue="long", is_async=True, **{"shop_name": self.name})
 
-	def sync_payouts(self):
+	def sync_payouts(self, start_date: str = str()):
 		"Pull and sync payouts from Shopify Payments transactions"
 		from shopify_integration.payouts import create_shopify_payouts
-		frappe.enqueue(method=create_shopify_payouts, queue='long', is_async=True, **{"shop_name": self.name})
+		if not start_date:
+			start_date = get_datetime_str(get_first_day(today()))
+		frappe.enqueue(method=create_shopify_payouts, queue='long', is_async=True, **{
+			"shop_name": self.name,
+			"start_date": start_date
+		})
 
 	def validate_access_credentials(self):
 		if not self.shopify_url:

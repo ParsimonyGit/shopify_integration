@@ -30,7 +30,7 @@ def sync_all_payouts():
 		shop_doc.sync_payouts()
 
 
-def create_shopify_payouts(shop_name: str):
+def create_shopify_payouts(shop_name: str, start_date: str = str()):
 	"""
 	Pull the latest payouts from Shopify and do the following:
 
@@ -41,11 +41,12 @@ def create_shopify_payouts(shop_name: str):
 
 	Args:
 		shop_name (str): The name of the Shopify configuration for the store.
+		start_date (str, optional): The date to start pulling payouts from.
 	"""
 
 	shopify_settings: "ShopifySettings" = frappe.get_doc("Shopify Settings", shop_name)
 
-	payouts = get_payouts(shopify_settings)
+	payouts = get_payouts(shopify_settings, start_date)
 	if not payouts:
 		return
 
@@ -76,19 +77,22 @@ def create_shopify_payouts(shop_name: str):
 	shopify_settings.save()
 
 
-def get_payouts(shopify_settings: "ShopifySettings"):
+def get_payouts(shopify_settings: "ShopifySettings", start_date: str = str()):
 	"""
 	Request Shopify API for the latest payouts
 
 	Args:
 		shopify_settings (ShopifySettings): The Shopify configuration for the store.
+		start_date (str, optional): The date to start pulling payouts from.
 
 	Returns:
 		list of shopify.Payout: The list of Shopify payouts, if any.
 	"""
 
 	kwargs = {}
-	if shopify_settings.last_sync_datetime:
+	if start_date:
+		kwargs['date_min'] = start_date
+	elif shopify_settings.last_sync_datetime:
 		kwargs['date_min'] = shopify_settings.last_sync_datetime
 	else:
 		# default to first day of current month for first sync
