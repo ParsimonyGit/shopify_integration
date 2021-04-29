@@ -1,5 +1,11 @@
+from typing import TYPE_CHECKING
+
 import frappe
 from frappe import _
+from frappe.utils import cstr
+
+if TYPE_CHECKING:
+	from shopify import Order
 
 
 def get_accounting_entry(
@@ -46,7 +52,7 @@ def get_debit_or_credit(amount, account):
 		return debit_field if amount < 0 else credit_field
 
 
-def get_tax_account_head(tax_type):
+def get_tax_account_head(shop_name: str, tax_type: str):
 	tax_map = {
 		"payout": "cash_bank_account",
 		"refund": "cash_bank_account",
@@ -60,28 +66,58 @@ def get_tax_account_head(tax_type):
 	if not tax_field:
 		frappe.throw(_("Account not specified for '{0}'".format(frappe.unscrub(tax_type))))
 
-	tax_account = frappe.db.get_single_value("Shopify Settings", tax_field)
+	tax_account = frappe.db.get_value("Shopify Settings", shop_name, tax_field)
 	if not tax_account:
 		frappe.throw(_("Account not specified for '{0}'".format(frappe.unscrub(tax_field))))
 
 	return tax_account
 
 
-def get_shopify_document(doctype, shopify_order_id):
+def get_shopify_document(
+	shop_name: str,
+	doctype: str,
+	order: "Order" = None,
+	order_id: str = str()
+):
 	"""
-	Get a valid linked document for a Shopify order ID.
+	Check if a Shopify order exists, including references from other apps.
 
 	Args:
-		doctype (str): The doctype to retrieve
-		shopify_order_id (str): The Shopify order ID
+		shop_name (str): The name of the Shopify configuration for the store.
+		doctype (str): The doctype records to check against.
+		order (Order, optional): The Shopify order data.
+		order_id (str, optional): The Shopify order ID.
 
 	Returns:
-		Document: The document for the Shopify order. Defaults to an
-			empty object if no document is found.
+		list(BaseDocument) | BaseDocument: The document object if a Shipstation
+			order exists for the Shopify order, otherwise an empty list. If
+			Delivery Notes need to be checked, then all found delivery documents
+			are returned.
 	"""
 
-	name = frappe.db.get_value(doctype,
-		{"docstatus": ["<", 2], "shopify_order_id": shopify_order_id}, "name")
-	if name:
-		return frappe.get_doc(doctype, name)
-	return frappe._dict()
+	shopify_docs = []
+
+	if order:
+		shopify_order_id = cstr(order.id)
+		shopify_order_number = cstr(order.order_number)
+	elif order_id:
+		shopify_order_id = order_id
+		shopify_order_number = None
+
+	existing_docs = frappe.db.get_all(doctype,
+		filters={
+			"docstatus": ["<", 2],
+			"shopify_settings": shop_name,
+		},
+		or_filters={
+			"shopify_order_id": shopify_order_id,
+			"shopify_order_number": shopify_order_number
+		})
+
+	if existing_docs:
+		# multiple deliveries can be made against a single order
+		if doctype == "Delivery Note":
+			shopify_docs = [frappe.get_doc(doctype, doc.name) for doc in existing_docs]
+		shopify_docs = frappe.get_doc(doctype, existing_docs[0].name)
+
+	return shopify_docs

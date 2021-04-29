@@ -1,13 +1,15 @@
 {
- "creation": "2015-05-18 05:21:07.270859",
+ "autoname": "field:shop_name",
+ "creation": "2021-03-24 07:03:58.991830",
  "doctype": "DocType",
  "document_type": "System",
  "engine": "InnoDB",
  "field_order": [
-  "status_html",
   "enable_shopify",
+  "sb_shop",
+  "shop_name",
   "shopify_url",
-  "column_break_4",
+  "cb_shop",
   "app_type",
   "last_sync_datetime",
   "sb_auth",
@@ -20,7 +22,6 @@
   "webhooks",
   "sb_company",
   "company",
-  "default_item_group",
   "cb_company",
   "cost_center",
   "sb_customer",
@@ -29,9 +30,10 @@
   "customer_group",
   "sb_transactions",
   "price_list",
-  "update_price_in_erpnext_price_list",
+  "item_group",
   "cb_transactions",
   "warehouse",
+  "update_price_in_erpnext_price_list",
   "sb_naming_series",
   "sales_order_series",
   "sync_delivery_note",
@@ -48,28 +50,20 @@
  ],
  "fields": [
   {
-   "fieldname": "status_html",
-   "fieldtype": "HTML",
-   "label": "status html",
-   "read_only": 1
-  },
-  {
    "default": "0",
    "fieldname": "enable_shopify",
    "fieldtype": "Check",
-   "label": "Enable Shopify"
+   "in_list_view": 1,
+   "label": "Enabled"
   },
   {
-   "description": "eg: frappe.myshopify.com",
+   "description": "For example, https://frappe.myshopify.com",
    "fieldname": "shopify_url",
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Shop URL",
-   "reqd": 1
-  },
-  {
-   "fieldname": "column_break_4",
-   "fieldtype": "Column Break"
+   "reqd": 1,
+   "unique": 1
   },
   {
    "default": "Private",
@@ -84,6 +78,7 @@
    "fieldname": "last_sync_datetime",
    "fieldtype": "Datetime",
    "label": "Last Sync Datetime",
+   "no_copy": 1,
    "read_only": 1
   },
   {
@@ -130,6 +125,7 @@
    "fieldname": "webhooks",
    "fieldtype": "Table",
    "label": "Webhooks",
+   "no_copy": 1,
    "options": "Shopify Webhook Detail",
    "read_only": 1
   },
@@ -284,15 +280,29 @@
    "options": "Account"
   },
   {
-   "default": "All Item Groups",
-   "fieldname": "default_item_group",
+   "fieldname": "shop_name",
+   "fieldtype": "Data",
+   "label": "Shop Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "sb_shop",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "cb_shop",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "item_group",
    "fieldtype": "Link",
-   "label": "Default Item Group",
-   "options": "Item Group"
+   "label": "Item Group",
+   "options": "Item Group",
+   "reqd": 1
   }
  ],
- "issingle": 1,
- "modified": "2021-03-15 03:28:40.516690",
+ "modified": "2021-04-26 04:08:26.693213",
  "modified_by": "Administrator",
  "module": "Shopify Integration",
  "name": "Shopify Settings",
@@ -310,5 +320,6 @@
   }
  ],
  "sort_field": "modified",
- "sort_order": "DESC"
+ "sort_order": "DESC",
+ "track_changes": 1
 }

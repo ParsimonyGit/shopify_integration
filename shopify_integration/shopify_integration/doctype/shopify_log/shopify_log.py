@@ -16,7 +16,7 @@ def make_shopify_log(status="Queued", response_data=None, exception=None, rollba
 	# if name not provided by log calling method then fetch existing queued state log
 	make_new = False
 
-	if not frappe.flags.request_id:
+	if not frappe.flags.log_id:
 		make_new = True
 
 	if rollback:
@@ -25,7 +25,7 @@ def make_shopify_log(status="Queued", response_data=None, exception=None, rollba
 	if make_new:
 		log = frappe.new_doc("Shopify Log").insert(ignore_permissions=True)
 	else:
-		log = frappe.get_doc("Shopify Log", frappe.flags.request_id)
+		log = frappe.get_doc("Shopify Log", frappe.flags.log_id)
 
 	if not isinstance(response_data, str):
 		response_data = json.dumps(response_data, sort_keys=True, indent=4)
@@ -53,4 +53,4 @@ def get_message(exception):
 def resync(method, name, request_data):
 	frappe.db.set_value("Shopify Log", name, "status", "Queued", update_modified=False)
 	frappe.enqueue(method=method, queue='short', timeout=300, is_async=True,
-		**{"order": json.loads(request_data), "request_id": name})
+		**{"order": json.loads(request_data), "log_id": name})

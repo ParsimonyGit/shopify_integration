@@ -3,12 +3,13 @@
 # For license information, please see license.txt
 
 from shopify.collection import PaginatedCollection, PaginatedIterator
-from shopify.resources import Order, Payouts, Product, Refund, Transactions, Webhook
+from shopify.resources import Order, Payouts, Product, Refund, Transactions, Variant, Webhook
 from shopify.session import Session as ShopifySession
 
 import frappe
 from frappe import _
 from frappe.model.document import Document
+from frappe.utils import get_datetime_str, get_first_day, today
 
 from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log import make_shopify_log
 
@@ -38,14 +39,17 @@ class ShopifySettings(Document):
 		return ShopifySession(*args)
 
 	def get_resources(self, resource, *args, **kwargs):
-		# TODO: figure out a way to nicely handle limits;
-		# currently, shopify's PaginatedIterator ignores limits during retrieval
-
 		with self.get_shopify_session(temp=True):
 			resources = resource.find(*args, **kwargs)
 
+			# if a limited number of documents are requested, don't keep looping;
+			# this is a side-effect from the way the library works, since it
+			# doesn't process the "limit" keyword
+			if "limit" in kwargs:
+				return resources if isinstance(resources, PaginatedCollection) else [resources]
+
 			if isinstance(resources, PaginatedCollection):
-				# Shopify's API limits responses to 50 per page;
+				# Shopify's API limits responses to 50 per page by default;
 				# we keep calling to retrieve all the resource documents
 				paged_resources = PaginatedIterator(resources)
 				return [resource for page in paged_resources for resource in page]
@@ -69,8 +73,26 @@ class ShopifySettings(Document):
 	def get_refunds(self, *args, **kwargs):
 		return self.get_resources(Refund, *args, **kwargs)
 
+	def get_variants(self, *args, **kwargs):
+		return self.get_resources(Variant, *args, **kwargs)
+
 	def get_webhooks(self, *args, **kwargs):
 		return self.get_resources(Webhook, *args, **kwargs)
+
+	def sync_products(self):
+		"Pull and sync products from Shopify, including variants"
+		from shopify_integration.products import sync_items_from_shopify
+		frappe.enqueue(method=sync_items_from_shopify, queue="long", is_async=True, **{"shop_name": self.name})
+
+	def sync_payouts(self, start_date: str = str()):
+		"Pull and sync payouts from Shopify Payments transactions"
+		from shopify_integration.payouts import create_shopify_payouts
+		if not start_date:
+			start_date = get_datetime_str(get_first_day(today()))
+		frappe.enqueue(method=create_shopify_payouts, queue='long', is_async=True, **{
+			"shop_name": self.name,
+			"start_date": start_date
+		})
 
 	def validate_access_credentials(self):
 		if not self.shopify_url:
@@ -86,9 +108,9 @@ class ShopifySettings(Document):
 			self.unregister_webhooks()
 
 	def register_webhooks(self):
-		from shopify_integration.webhooks import get_webhook_url, SHOPIFY_WEBHOOK_TOPICS
+		from shopify_integration.webhooks import get_webhook_url, SHOPIFY_WEBHOOK_TOPIC_MAPPER
 
-		for topic in SHOPIFY_WEBHOOK_TOPICS:
+		for topic in SHOPIFY_WEBHOOK_TOPIC_MAPPER:
 			with self.get_shopify_session(temp=True):
 				webhook = Webhook.create({
 					"topic": topic,
