@@ -57,6 +57,7 @@ frappe.ui.form.on("Shopify Settings", {
 					callback: function (r) {
 						if (!r.exc) {
 							frappe.msgprint(__("Product sync has been queued. This may take a few minutes."));
+							frm.reload_doc();
 						} else {
 							frappe.msgprint(__("Something went wrong while trying to sync products. Please check the latest Shopify logs."))
 						}
@@ -73,7 +74,7 @@ frappe.ui.form.on("Shopify Settings", {
 							"label": __("Payout Start Date"),
 							"description": __("Defaults to the 'Last Sync Datetime' field"),
 							"default": frm.doc.last_sync_datetime,
-							"reqd": 1,
+							"reqd": 1
 						}
 					],
 					(values) => {
@@ -86,6 +87,7 @@ frappe.ui.form.on("Shopify Settings", {
 							callback: function (r) {
 								if (!r.exc) {
 									frappe.msgprint(__("Payout sync has been queued. This may take a few minutes."));
+									frm.reload_doc();
 								} else {
 									frappe.msgprint(__("Something went wrong while trying to sync payouts. Please check the latest Shopify logs."))
 								}

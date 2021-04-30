@@ -350,7 +350,7 @@ def create_item(
 	if frappe.db.exists("Item Group", new_item.item_code):
 		new_item.item_code = f"{new_item.item_code} ({new_item.item_group})"
 
-	new_item.insert(ignore_permissions=True, ignore_mandatory=True)
+	new_item.insert(ignore_permissions=True)
 
 	# once the defaults have been generated, set the item supplier from Shopify
 	supplier = get_supplier(shopify_settings, shopify_item)
@@ -560,7 +560,6 @@ def is_item_exists(
 		return False
 
 	item: "Item" = frappe.get_doc("Item", name)
-	item.flags.ignore_mandatory = True
 
 	if not variant_of and not item.shopify_product_id:
 		item.shopify_product_id = shopify_item.get("shopify_product_id")
@@ -600,7 +599,6 @@ def is_item_exists(
 
 		if parent:
 			variant: "Item" = frappe.get_doc("Item", parent[0])
-			variant.flags.ignore_mandatory = True
 
 			variant.shopify_product_id = shopify_item.get("shopify_product_id")
 			variant.shopify_variant_id = shopify_item.get("shopify_variant_id")

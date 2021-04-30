@@ -127,7 +127,8 @@ def update_fulfillment_items(
 	fulfillment_items: List["LineItem"]
 ):
 	for dn_item in dn_items:
+		# TODO: figure out a better way to add items without setting valuation rate to zero
+		dn_item.allow_zero_valuation_rate = True
 		for item in fulfillment_items:
 			if get_item_code(item) == dn_item.item_code:
-				# TODO: figure out a better way to add items without setting valuation rate to zero
-				dn_item.update({"qty": item.attributes.get("quantity"), "allow_zero_valuation_rate": 1})
+				dn_item.qty = item.attributes.get("quantity")

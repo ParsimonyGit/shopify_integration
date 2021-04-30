@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, List
 
 import frappe
-from frappe.utils import flt, nowdate
+from frappe.utils import flt, getdate, nowdate
 
 from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log import make_shopify_log
 from shopify_integration.utils import get_shopify_document, get_tax_account_head
@@ -98,12 +98,12 @@ def create_sales_order(shop_name: str, shopify_order: "Order"):
 		"shopify_order_id": shopify_order.id,
 		"shopify_order_number": shopify_order.attributes.get("order_number"),
 		"customer": customer or shopify_settings.default_customer,
-		"transaction_date": shopify_order.attributes.get("created_at"),
-		"delivery_date": shopify_order.attributes.get("created_at"),
+		"transaction_date": getdate(shopify_order.attributes.get("created_at")),
+		"delivery_date": getdate(shopify_order.attributes.get("created_at")),
 		"company": shopify_settings.company,
 		"selling_price_list": shopify_settings.price_list,
 		"ignore_pricing_rule": 1,
-		"items": get_order_items(shopify_order.attributes.get("line_items"), shopify_settings.warehouse),
+		"items": get_order_items(shopify_order.attributes.get("line_items", []), shopify_settings),
 		"taxes": get_order_taxes(shopify_order, shopify_settings),
 		"apply_discount_on": "Grand Total",
 		"discount_amount": flt(shopify_order.attributes.get("total_discounts")),
@@ -116,21 +116,25 @@ def create_sales_order(shop_name: str, shopify_order: "Order"):
 	return sales_order
 
 
-def get_order_items(shopify_order_items: List["LineItem"], warehouse: str):
+def get_order_items(shopify_order_items: List["LineItem"], shopify_settings: "ShopifySettings"):
 	from shopify_integration.products import get_item_code
 
 	items = []
 	for shopify_item in shopify_order_items:
 		item_code = get_item_code(shopify_item)
+		item_group = frappe.db.get_value("Item", item_code, "item_group") or \
+			shopify_settings.item_group
+
 		items.append({
 			"item_code": item_code,
 			"item_name": shopify_item.attributes.get("name"),
+			"item_group": item_group,
 			"rate": shopify_item.attributes.get("price"),
 			"delivery_date": nowdate(),
 			"qty": shopify_item.attributes.get("quantity"),
 			"stock_uom": shopify_item.attributes.get("uom") or "Nos",
 			"conversion_factor": 1,
-			"warehouse": warehouse
+			"warehouse": shopify_settings.warehouse
 		})
 	return items
 
