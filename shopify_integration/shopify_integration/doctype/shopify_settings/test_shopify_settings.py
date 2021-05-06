@@ -7,12 +7,16 @@ import os
 import secrets
 import unittest
 
+from shopify import Address, Customer, Fulfillment, LineItem, Order, Product, ShippingLine
+
 import frappe
 from frappe.core.doctype.data_import.data_import import import_doc
 from frappe.utils import cstr
 
 from shopify_integration.customers import create_customer
-from shopify_integration.orders import create_shopify_documents
+from shopify_integration.fulfilments import create_shopify_delivery
+from shopify_integration.invoices import create_shopify_invoice
+from shopify_integration.orders import create_sales_order
 from shopify_integration.products import make_item
 from shopify_integration.utils import get_shopify_document
 
@@ -36,46 +40,107 @@ class ShopifySettings(unittest.TestCase):
 
 		# create customer
 		with open(os.path.join(os.path.dirname(__file__), "test_data", "shopify_customer.json")) as shopify_customer:
-			shopify_customer = json.loads(shopify_customer.read())
-			create_customer(shopify_settings.name, shopify_customer.get("customer"))
+			customer = Customer()
+			customer_data = json.loads(shopify_customer.read())
+			formatted_customer_data = prepare_customer_format(customer_data)
+			customer.attributes.update(customer_data)
+			create_customer(shopify_settings.name, customer)
 
 		# create item
 		with open(os.path.join(os.path.dirname(__file__), "test_data", "shopify_item.json")) as shopify_item:
-			shopify_item = json.loads(shopify_item.read())
-			make_item(shopify_settings, shopify_item.get("product"))
+			item = Product()
+			item.attributes.update(json.loads(shopify_item.read()))
+			make_item(shopify_settings, item)
 
-		# create order
+		# create order, invoice and delivery
 		with open(os.path.join(os.path.dirname(__file__), "test_data", "shopify_order.json")) as shopify_order:
-			shopify_order = json.loads(shopify_order.read())
-			create_shopify_documents(shopify_settings.name, shopify_order.get("order"))
+			order = Order()
+			order_data = json.loads(shopify_order.read())
+			formatted_order_data = prepare_order_format(order_data)
+			order.attributes.update(formatted_order_data)
+
+			sales_order = create_sales_order(shopify_settings.name, order)
+			create_shopify_invoice(shopify_settings.name, order, sales_order)
+			create_shopify_delivery(shopify_settings.name, order, sales_order)
 
 		# verify sales order IDs
-		shopify_order_id = cstr(shopify_order.get("order", {}).get("id"))
-		sales_order = get_shopify_document("Sales Order", shopify_order_id)
-		self.assertEqual(shopify_order_id, sales_order.shopify_order_id)
+		sales_order = get_shopify_document(shopify_settings.name, "Sales Order", order_id=order.id)
+		self.assertEqual(cstr(order.id), sales_order.shopify_order_id)
 
 		# verify customer IDs
-		shopify_order_customer_id = cstr(shopify_order.get("order", {}).get("customer", {}).get("id"))
+		shopify_order_customer_id = cstr(order.customer.id)
 		sales_order_customer_id = frappe.db.get_value("Customer", sales_order.customer, "shopify_customer_id")
 		self.assertEqual(shopify_order_customer_id, sales_order_customer_id)
 
 		# verify sales invoice totals
-		sales_invoice = get_shopify_document("Sales Invoice", sales_order.shopify_order_id)
+		sales_invoice = get_shopify_document(shopify_settings.name, "Sales Invoice", order_id=sales_order.shopify_order_id)
 		self.assertEqual(sales_invoice.rounded_total, sales_order.rounded_total)
 
 		# verify delivery notes created for all fulfillments
-		delivery_note_count = frappe.db.sql("""select count(*) from `tabDelivery Note`
-			where shopify_order_id = %s""", sales_order.shopify_order_id)[0][0]
+		delivery_note = get_shopify_document(shopify_settings.name, "Delivery Note", order_id=sales_order.shopify_order_id)
+		self.assertEqual(len(delivery_note.items), len(order.fulfillments))
 
-		self.assertEqual(delivery_note_count, len(shopify_order.get("order", {}).get("fulfillments")))
+
+def prepare_customer_format(customer_data):
+	# simulate the Shopify customer object with proper class instances
+	if "addresses" in customer_data:
+		customer_addresses = []
+		for address in customer_data.get("addresses"):
+			customer_address = Address()
+			customer_address.attributes.update(address)
+			customer_addresses.append(customer_address)
+		customer_data.update({"addresses": customer_addresses})
+	return customer_data
+
+
+def prepare_order_format(order_data):
+	# simulate the Shopify order object with proper class instances
+	if "customer" in order_data:
+		order_customer = Customer()
+		order_customer.attributes.update(order_data.get("customer"))
+		order_data.update({"customer": order_customer})
+	if "line_items" in order_data:
+		order_line_items = []
+		for line_item in order_data.get("line_items"):
+			order_line_item = LineItem()
+			order_line_item.attributes.update(line_item)
+			order_line_items.append(order_line_item)
+		order_data.update({"line_items": order_line_items})
+	if "shipping_lines" in order_data:
+		order_shipping_lines = []
+		for shipping_line in order_data.get("shipping_lines"):
+			order_shipping_line = ShippingLine()
+			order_shipping_line.attributes.update(shipping_line)
+			order_shipping_lines.append(order_shipping_line)
+		order_data.update({"shipping_lines": order_shipping_lines})
+	if "fulfillments" in order_data:
+		order_fulfillments = []
+		for fulfillment in order_data.get("fulfillments"):
+			if "line_items" in fulfillment:
+				fulfillment_line_items = []
+				for line_item in fulfillment.get("line_items"):
+					fulfillment_line_item = LineItem()
+					fulfillment_line_item.attributes.update(line_item)
+					fulfillment_line_items.append(fulfillment_line_item)
+				fulfillment.update({"line_items": fulfillment_line_items})
+			order_fulfillment = Fulfillment()
+			order_fulfillment.attributes.update(fulfillment)
+			order_fulfillments.append(order_fulfillment)
+		order_data.update({"fulfillments": order_fulfillments})
+
+	return order_data
 
 
 def setup_shopify():
+	if frappe.db.exists("Shopify Settings", None, "Test Shopify"):
+		return
+
 	shopify_settings = frappe.new_doc("Shopify Settings")
 	shopify_settings.update({
 		"app_type": "Private",
 		"shop_name": "Test Shopify",
 		"shopify_url": "test.myshopify.com",
+		"company": "_Test Company",
 		"api_key": secrets.token_urlsafe(nbytes=16),
 		"password": secrets.token_urlsafe(nbytes=16),
 		"shared_secret": secrets.token_urlsafe(nbytes=16),
@@ -84,6 +149,7 @@ def setup_shopify():
 		"account": "Cash - _TC",
 		"customer_group": "_Test Customer Group",
 		"cost_center": "Main - _TC",
+		"item_group": "_Test Item Group",
 		"enable_shopify": 0,
 		"sales_order_series": "SO-",
 		"sync_sales_invoice": 1,
