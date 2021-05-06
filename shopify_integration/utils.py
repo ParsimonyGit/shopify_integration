@@ -95,7 +95,7 @@ def get_shopify_document(
 			are returned.
 	"""
 
-	shopify_docs = []
+	shopify_docs = [] if doctype == "Delivery Note" else frappe._dict()
 
 	if order:
 		shopify_order_id = cstr(order.id)
