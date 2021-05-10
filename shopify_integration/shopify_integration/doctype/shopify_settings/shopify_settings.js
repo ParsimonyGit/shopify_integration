@@ -78,7 +78,7 @@ frappe.ui.form.on("Shopify Settings", {
 						}
 					],
 					(values) => {
-						let start_date = values.start_date;
+						const start_date = values.start_date;
 						frm.call({
 							doc: frm.doc,
 							method: "sync_payouts",

@@ -43,7 +43,7 @@ class ShopifySettings(unittest.TestCase):
 			customer = Customer()
 			customer_data = json.loads(shopify_customer.read())
 			formatted_customer_data = prepare_customer_format(customer_data)
-			customer.attributes.update(customer_data)
+			customer.attributes.update(formatted_customer_data)
 			create_customer(shopify_settings.name, customer)
 
 		# create item
