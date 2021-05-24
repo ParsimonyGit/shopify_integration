@@ -71,7 +71,7 @@ def dump_request_data(shop_name, data, event="orders/create"):
 		queue="short",
 		timeout=300,
 		is_async=True,
-		**{"shop": shop_name, "order": data, "log_id": log.name}
+		**{"shop_name": shop_name, "order": data, "log_id": log.name}
 	)
 
 
