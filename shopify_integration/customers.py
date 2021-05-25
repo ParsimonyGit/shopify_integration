@@ -23,7 +23,7 @@ def create_customer(shop_name: str, shopify_customer: "ShopifyCustomer"):
 		last_name = cstr(shopify_customer.last_name)
 		cust_name = f"{first_name} {last_name}"
 	else:
-		cust_name = shopify_customer.email
+		cust_name = shopify_customer.attributes.get("email")
 
 	try:
 		customer: "Customer" = frappe.get_doc({
