@@ -3,6 +3,8 @@ import hashlib
 import hmac
 import json
 
+from shopify import Order
+
 import frappe
 from frappe import _
 
@@ -36,7 +38,9 @@ def store_request_data():
 		dump_request_data(shop_name, data, event)
 
 
-def validate_webhooks_request(doctype, name, hmac_key, secret_key="secret"):
+def validate_webhooks_request(
+	doctype: str, name: str, hmac_key: str, secret_key: str = "secret"
+):
 	if not frappe.request or frappe.flags.in_test:
 		return
 
@@ -57,22 +61,28 @@ def validate_webhooks_request(doctype, name, hmac_key, secret_key="secret"):
 			frappe.throw(_("Unverified Shopify Webhook Data"))
 
 
-def dump_request_data(shop_name, data, event="orders/create"):
+def dump_request_data(shop_name: str, data: dict, event: str = "orders/create"):
 	frappe.set_user("Administrator")
-	log = frappe.get_doc({
-		"doctype": "Shopify Log",
-		"request_data": json.dumps(data, indent=1),
-		"method": SHOPIFY_WEBHOOK_TOPIC_MAPPER.get(event),
-	}).insert(ignore_permissions=True)
-
-	frappe.db.commit()
+	log = create_shopify_log(data, event)
+	order = Order()
+	order.attributes.update(data)
 	frappe.enqueue(
 		method=SHOPIFY_WEBHOOK_TOPIC_MAPPER.get(event),
 		queue="short",
 		timeout=300,
 		is_async=True,
-		**{"shop_name": shop_name, "order": data, "log_id": log.name}
+		**{"shop_name": shop_name, "order": order, "log_id": log.name}
 	)
+
+
+def create_shopify_log(data: dict, event: str = "orders/create"):
+	log = frappe.get_doc({
+		"doctype": "Shopify Log",
+		"request_data": json.dumps(data, indent=1),
+		"method": SHOPIFY_WEBHOOK_TOPIC_MAPPER.get(event),
+	}).insert(ignore_permissions=True)
+	frappe.db.commit()
+	return log
 
 
 def get_shop_for_webhook():

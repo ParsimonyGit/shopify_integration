@@ -206,9 +206,9 @@ def cancel_shopify_order(shop_name: str, order: "Order", log_id: str = str()):
 		payout_transactions = frappe.get_all("Shopify Payout Transaction",
 			filters={
 				frappe.scrub(doctype): doc.name,
-				"source_order_financial_status": ["!=", order.get("financial_status")]
+				"source_order_financial_status": ["!=", order.attributes.get("financial_status")]
 			})
 
 		for transaction in payout_transactions:
 			frappe.db.set_value("Shopify Payout Transaction", transaction.name,
-				"source_order_financial_status", frappe.unscrub(order.get("financial_status")))
+				"source_order_financial_status", frappe.unscrub(order.attributes.get("financial_status")))
