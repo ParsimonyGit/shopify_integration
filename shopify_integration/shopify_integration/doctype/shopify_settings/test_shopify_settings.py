@@ -132,7 +132,7 @@ def prepare_order_format(order_data):
 
 
 def setup_shopify():
-	if frappe.db.exists("Shopify Settings", None, "Test Shopify"):
+	if frappe.db.exists("Shopify Settings", "Test Shopify"):
 		return
 
 	shopify_settings = frappe.new_doc("Shopify Settings")
