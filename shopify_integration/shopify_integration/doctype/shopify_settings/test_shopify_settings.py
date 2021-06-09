@@ -7,7 +7,7 @@ import os
 import secrets
 import unittest
 
-from shopify import Address, Customer, Fulfillment, LineItem, Order, Product, ShippingLine
+from shopify import Address, Customer, Fulfillment, Image, LineItem, Order, Product, ShippingLine
 
 import frappe
 from frappe.core.doctype.data_import.data_import import import_doc
@@ -49,7 +49,9 @@ class ShopifySettings(unittest.TestCase):
 		# create item
 		with open(os.path.join(os.path.dirname(__file__), "test_data", "shopify_item.json")) as shopify_item:
 			item = Product()
-			item.attributes.update(json.loads(shopify_item.read()))
+			product_data = json.loads(shopify_item.read())
+			formatted_product_data = prepare_product_format(product_data)
+			item.attributes.update(formatted_product_data)
 			make_item(shopify_settings, item)
 
 		# create order, invoice and delivery
@@ -91,6 +93,15 @@ def prepare_customer_format(customer_data):
 			customer_addresses.append(customer_address)
 		customer_data.update({"addresses": customer_addresses})
 	return customer_data
+
+
+def prepare_product_format(product_data):
+	# simulate the Shopify product object with proper class instances
+	if "image" in product_data:
+		product_image = Image()
+		product_image.attributes.update(product_data.get("image"))
+		product_data.update({"image": product_image})
+	return product_data
 
 
 def prepare_order_format(order_data):

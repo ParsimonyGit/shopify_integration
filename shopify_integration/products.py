@@ -481,7 +481,7 @@ def get_item_image(shopify_settings: "ShopifySettings", shopify_item: Union[Prod
 
 	for product in products:
 		if product.attributes.get("image"):
-			image_url = product.attributes.get("image").get("src")
+			image_url = product.attributes.get("image").attributes.get("src")
 			break
 
 	return image_url
