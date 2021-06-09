@@ -5,9 +5,9 @@
 
 frappe.provide("erpnext_integrations.shopify_settings");
 frappe.ui.form.on("Shopify Settings", {
-	onload: function (frm) {
+	onload: (frm) => {
 		frm.call("get_series").then(r => {
-			$.each(r.message, function (key, value) {
+			$.each(r.message, (key, value) => {
 				set_field_options(key, value);
 			});
 		});
@@ -15,7 +15,7 @@ frappe.ui.form.on("Shopify Settings", {
 		erpnext_integrations.shopify_settings.setup_queries(frm);
 	},
 
-	refresh: function (frm) {
+	refresh: (frm) => {
 		if (!frm.is_new() && frm.doc.enable_shopify === 1) {
 			frm.toggle_reqd("price_list", true);
 			frm.toggle_reqd("warehouse", true);
@@ -49,12 +49,12 @@ frappe.ui.form.on("Shopify Settings", {
 		}
 
 		if (frm.doc.enable_shopify) {
-			frm.add_custom_button(__("Products"), function () {
+			frm.add_custom_button(__("Products"), () => {
 				frm.call({
 					doc: frm.doc,
 					method: "sync_products",
 					freeze: true,
-					callback: function (r) {
+					callback: (r) => {
 						if (!r.exc) {
 							frappe.msgprint(__("Product sync has been queued. This may take a few minutes."));
 							frm.reload_doc();
@@ -65,7 +65,7 @@ frappe.ui.form.on("Shopify Settings", {
 				})
 			}, __("Sync"));
 
-			frm.add_custom_button(__("Payouts"), function () {
+			frm.add_custom_button(__("Payouts"), () => {
 				frappe.prompt(
 					[
 						{
@@ -78,13 +78,13 @@ frappe.ui.form.on("Shopify Settings", {
 						}
 					],
 					(values) => {
-						const start_date = values.start_date;
+						const { start_date } = values;
 						frm.call({
 							doc: frm.doc,
 							method: "sync_payouts",
 							args: { "start_date": start_date },
 							freeze: true,
-							callback: function (r) {
+							callback: (r) => {
 								if (!r.exc) {
 									frappe.msgprint(__("Payout sync has been queued. This may take a few minutes."));
 									frm.reload_doc();
@@ -100,15 +100,15 @@ frappe.ui.form.on("Shopify Settings", {
 		}
 	},
 
-	app_type: function (frm) {
+	app_type: (frm) => {
 		frm.toggle_reqd("api_key", (frm.doc.app_type === "Private"));
 		frm.toggle_reqd("password", (frm.doc.app_type === "Private"));
 	}
 })
 
 $.extend(erpnext_integrations.shopify_settings, {
-	setup_queries: function (frm) {
-		frm.set_query("warehouse", function (doc) {
+	setup_queries: (frm) => {
+		frm.set_query("warehouse", (doc) => {
 			return {
 				filters: {
 					company: doc.company,
@@ -117,7 +117,7 @@ $.extend(erpnext_integrations.shopify_settings, {
 			}
 		});
 
-		frm.set_query("tax_account", function (doc) {
+		frm.set_query("tax_account", (doc) => {
 			return {
 				query: "erpnext.controllers.queries.tax_account_query",
 				filters: {
@@ -127,7 +127,7 @@ $.extend(erpnext_integrations.shopify_settings, {
 			}
 		});
 
-		frm.set_query("shipping_account", function (doc) {
+		frm.set_query("shipping_account", (doc) => {
 			return {
 				query: "erpnext.controllers.queries.tax_account_query",
 				filters: {
@@ -137,7 +137,7 @@ $.extend(erpnext_integrations.shopify_settings, {
 			}
 		});
 
-		frm.set_query("payment_fee_account", function (doc) {
+		frm.set_query("payment_fee_account", (doc) => {
 			return {
 				query: "erpnext.controllers.queries.tax_account_query",
 				filters: {
@@ -147,7 +147,7 @@ $.extend(erpnext_integrations.shopify_settings, {
 			}
 		});
 
-		frm.set_query("cash_bank_account", function (doc) {
+		frm.set_query("cash_bank_account", (doc) => {
 			return {
 				filters: [
 					["Account", "account_type", "in", ["Cash", "Bank"]],
@@ -158,7 +158,7 @@ $.extend(erpnext_integrations.shopify_settings, {
 			}
 		});
 
-		frm.set_query("cost_center", function (doc) {
+		frm.set_query("cost_center", (doc) => {
 			return {
 				filters: {
 					company: doc.company,
@@ -167,7 +167,7 @@ $.extend(erpnext_integrations.shopify_settings, {
 			}
 		});
 
-		frm.set_query("price_list", function () {
+		frm.set_query("price_list", () => {
 			return { filters: { selling: 1 } }
 		});
 	}
