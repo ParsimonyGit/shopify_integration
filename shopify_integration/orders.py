@@ -132,7 +132,7 @@ def get_order_items(shopify_order_items: List["LineItem"], shopify_settings: "Sh
 			"rate": shopify_item.attributes.get("price"),
 			"delivery_date": nowdate(),
 			"qty": shopify_item.attributes.get("quantity"),
-			"stock_uom": shopify_item.attributes.get("uom") or "Ea",
+			"stock_uom": shopify_item.attributes.get("uom") or "Nos",
 			"conversion_factor": 1,
 			"warehouse": shopify_settings.warehouse
 		})
