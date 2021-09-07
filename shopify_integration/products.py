@@ -147,7 +147,7 @@ def make_item_by_title(shopify_settings: "ShopifySettings", line_item_title: str
 		"description": line_item_title,
 		"shopify_description": line_item_title,
 		"item_group": shopify_settings.item_group,
-		"stock_uom": _("Nos"),
+		"stock_uom": frappe.db.get_single_value("Stock Settings", "stock_uom"),
 		"default_warehouse": shopify_settings.warehouse,
 		"integration_doctype": "Shopify Settings",
 		"integration_doc": shopify_settings.name,
@@ -272,18 +272,19 @@ def sync_item(
 		"description": item_description,
 		"shopify_description": item_description,
 		"item_group": shopify_settings.item_group,
-		"marketplace_item_group": get_item_group(shopify_item.attributes.get("product_type")),
+		"marketplace_item_group": get_item_group(
+			shopify_item.attributes.get("product_type")
+		),
 		"has_variants": item_has_variants,
-		"stock_uom": WEIGHT_UOM_MAP.get(shopify_item.attributes.get("uom")) or _("Nos"),
+		"stock_uom": WEIGHT_UOM_MAP.get(shopify_item.attributes.get("uom"))
+		or frappe.db.get_single_value("Stock Settings", "stock_uom"),
 		"shopify_sku": shopify_item.attributes.get("sku"),
 		"default_warehouse": shopify_settings.warehouse,
 		"weight_uom": WEIGHT_UOM_MAP.get(shopify_item.attributes.get("weight_unit")),
 		"weight_per_unit": shopify_item.attributes.get("weight"),
 		"integration_doctype": "Shopify Settings",
 		"integration_doc": shopify_settings.name,
-		"item_defaults": [{
-			"company": get_default_company()
-		}]
+		"item_defaults": [{"company": get_default_company()}],
 	}
 
 	if not is_item_exists(item_data, attributes, variant_of=variant_of):

@@ -116,14 +116,18 @@ def create_sales_order(shop_name: str, shopify_order: "Order"):
 	return sales_order
 
 
-def get_order_items(shopify_order_items: List["LineItem"], shopify_settings: "ShopifySettings"):
+def get_order_items(
+	shopify_order_items: List["LineItem"], shopify_settings: "ShopifySettings"
+):
 	from shopify_integration.products import get_item_code
 
 	items = []
 	for shopify_item in shopify_order_items:
 		item_code = get_item_code(shopify_item)
-		item_group = frappe.db.get_value("Item", item_code, "item_group") or \
-			shopify_settings.item_group
+		item_group = (
+			frappe.db.get_value("Item", item_code, "item_group")
+			or shopify_settings.item_group
+		)
 
 		items.append({
 			"item_code": item_code,
@@ -132,9 +136,10 @@ def get_order_items(shopify_order_items: List["LineItem"], shopify_settings: "Sh
 			"rate": shopify_item.attributes.get("price"),
 			"delivery_date": nowdate(),
 			"qty": shopify_item.attributes.get("quantity"),
-			"stock_uom": shopify_item.attributes.get("uom") or "Nos",
+			"stock_uom": shopify_item.attributes.get("uom")
+			or frappe.db.get_single_value("Stock Settings", "stock_uom"),
 			"conversion_factor": 1,
-			"warehouse": shopify_settings.warehouse
+			"warehouse": shopify_settings.warehouse,
 		})
 	return items
 
