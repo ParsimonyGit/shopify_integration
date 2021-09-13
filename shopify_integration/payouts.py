@@ -211,7 +211,7 @@ def create_shopify_payout(shopify_settings: "ShopifySettings", payout: "Payouts"
 			"sales_invoice": sales_invoice.name if sales_invoice else None,
 			"delivery_note": delivery_note.name if delivery_note else None,
 			"source_id": transaction.source_id,
-			"source_type": frappe.unscrub(transaction.source_type),
+			"source_type": frappe.unscrub(transaction.source_type or ""),
 			"source_order_financial_status": order_financial_status,
 			"source_order_id": shopify_order_id,
 			"source_order_transaction_id": transaction.source_order_transaction_id,
