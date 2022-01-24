@@ -108,10 +108,14 @@ scheduler_events = {
 
 # Overriding Methods
 # ------------------------------
-#
-# override_whitelisted_methods = {
-# 	"frappe.desk.doctype.event.event.get_events": "shopify_integration.event.get_events"
-# }
+
+override_doctype_class = {
+	"Connected App": "shopify_integration.hook_events.connected_app.ShopifyConnectedApp",
+}
+
+override_whitelisted_methods = {
+	"frappe.integrations.doctype.connected_app.connected_app.callback": "shopify_integration.api.callback"
+}
 #
 # each overriding function accepts a `data` argument;
 # generated from the base implementation of the doctype dashboard,
