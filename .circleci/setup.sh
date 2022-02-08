@@ -9,7 +9,7 @@ shopify-bench
 
 cd shopify-bench
 
-bench get-app http://github.com/frappe/erpnext --branch version-12 --skip-assets
+bench get-app http://github.com/ParsimonyGit/erpnext --branch parsimony-production --skip-assets
 bench get-app shopify_integration /tmp/shopify_integration --skip-assets
 
 bench set-mariadb-host 127.0.0.1
