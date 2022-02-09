@@ -56,15 +56,13 @@ def setup_custom_fields(args=None):
 				print_hide=1, translatable=0),
 
 			# Integration section
-			dict(fieldname="integration_details", label="Shopify", fieldtype="Section Break",
-				insert_after="description"),
+			dict(fieldname="sb_integration", label="Integration Details",
+				fieldtype="Section Break", insert_after="description", collapsible=1),
 			dict(fieldname="integration_doctype", label="Integration DocType",
-				fieldtype="Link", options="DocType", insert_after="integration_details",
+				fieldtype="Link", options="DocType", insert_after="sb_integration",
 				hidden=1, print_hide=1),
-			dict(fieldname="cb_shopify", fieldtype="Column Break",
-				insert_after="integration_doctype"),
 			dict(fieldname="integration_doc", label="Integration Doc", fieldtype="Data",
-				insert_after="cb_shopify", hidden=1, print_hide=1)
+				insert_after="integration_doctype", read_only=1, print_hide=1)
 		],
 		"Sales Order": [
 			dict(fieldname="sb_shopify", label="Shopify", fieldtype="Section Break",
