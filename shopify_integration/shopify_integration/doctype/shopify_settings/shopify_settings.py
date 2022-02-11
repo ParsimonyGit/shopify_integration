@@ -3,32 +3,44 @@
 # For license information, please see license.txt
 
 from shopify.collection import PaginatedCollection, PaginatedIterator
-from shopify.resources import Order, Payouts, Product, Refund, Transactions, Variant, Webhook
+from shopify.resources import (
+	Order,
+	Payouts,
+	Product,
+	Refund,
+	Transactions,
+	Variant,
+	Webhook,
+)
 from shopify.session import Session as ShopifySession
 
 import frappe
 from frappe import _
 from frappe.model.document import Document
+from frappe.model.naming import get_default_naming_series
 from frappe.utils import get_datetime_str, get_first_day, today
 
-from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log import make_shopify_log
+from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log import (
+	make_shopify_log,
+)
 
 
 class ShopifySettings(Document):
-	api_version = "2021-01"
+	api_version = "2022-01"
 
+	@frappe.whitelist()
 	@staticmethod
 	def get_series():
 		return {
-			"sales_order_series": frappe.get_meta("Sales Order").get_options("naming_series") or "SO-Shopify-",
-			"sales_invoice_series": frappe.get_meta("Sales Invoice").get_options("naming_series") or "SI-Shopify-",
-			"delivery_note_series": frappe.get_meta("Delivery Note").get_options("naming_series") or "DN-Shopify-"
+			"sales_order_series": get_default_naming_series("Sales Order")
+			or "SO-Shopify-",
+			"sales_invoice_series": get_default_naming_series("Sales Invoice")
+			or "SI-Shopify-",
+			"delivery_note_series": get_default_naming_series("Delivery Note")
+			or "DN-Shopify-",
 		}
 
 	def validate(self):
-		if self.enable_shopify:
-			self.validate_access_credentials()
-
 		if not frappe.conf.developer_mode:
 			self.update_webhooks()
 
@@ -46,7 +58,11 @@ class ShopifySettings(Document):
 			# this is a side-effect from the way the library works, since it
 			# doesn't process the "limit" keyword
 			if "limit" in kwargs:
-				return resources if isinstance(resources, PaginatedCollection) else [resources]
+				return (
+					resources
+					if isinstance(resources, PaginatedCollection)
+					else [resources]
+				)
 
 			if isinstance(resources, PaginatedCollection):
 				# Shopify's API limits responses to 50 per page by default;
@@ -79,27 +95,31 @@ class ShopifySettings(Document):
 	def get_webhooks(self, *args, **kwargs):
 		return self.get_resources(Webhook, *args, **kwargs)
 
+	@frappe.whitelist()
 	def sync_products(self):
 		"Pull and sync products from Shopify, including variants"
 		from shopify_integration.products import sync_items_from_shopify
-		frappe.enqueue(method=sync_items_from_shopify, queue="long", is_async=True, **{"shop_name": self.name})
 
+		frappe.enqueue(
+			method=sync_items_from_shopify,
+			queue="long",
+			is_async=True,
+			**{"shop_name": self.name}
+		)
+
+	@frappe.whitelist()
 	def sync_payouts(self, start_date: str = str()):
 		"Pull and sync payouts from Shopify Payments transactions"
 		from shopify_integration.payouts import create_shopify_payouts
+
 		if not start_date:
 			start_date = get_datetime_str(get_first_day(today()))
-		frappe.enqueue(method=create_shopify_payouts, queue='long', is_async=True, **{
-			"shop_name": self.name,
-			"start_date": start_date
-		})
-
-	def validate_access_credentials(self):
-		if not self.shopify_url:
-			frappe.throw(_("Missing value for Shop URL"))
-
-		if not self.get_password("password", raise_exception=False):
-			frappe.throw(_("Missing value for Password"))
+		frappe.enqueue(
+			method=create_shopify_payouts,
+			queue="long",
+			is_async=True,
+			**{"shop_name": self.name, "start_date": start_date}
+		)
 
 	def update_webhooks(self):
 		if self.enable_shopify and not self.webhooks:
@@ -108,24 +128,28 @@ class ShopifySettings(Document):
 			self.unregister_webhooks()
 
 	def register_webhooks(self):
-		from shopify_integration.webhooks import get_webhook_url, SHOPIFY_WEBHOOK_TOPIC_MAPPER
+		from shopify_integration.webhooks import (
+			get_webhook_url,
+			SHOPIFY_WEBHOOK_TOPIC_MAPPER,
+		)
 
 		for topic in SHOPIFY_WEBHOOK_TOPIC_MAPPER:
 			with self.get_shopify_session(temp=True):
-				webhook = Webhook.create({
-					"topic": topic,
-					"address": get_webhook_url(),
-					"format": "json"
-				})
+				webhook = Webhook.create(
+					{"topic": topic, "address": get_webhook_url(), "format": "json"}
+				)
 
 			if webhook.is_valid():
-				self.append("webhooks", {
-					"webhook_id": webhook.id,
-					"method": webhook.topic
-				})
+				self.append(
+					"webhooks", {"webhook_id": webhook.id, "method": webhook.topic}
+				)
 			else:
-				make_shopify_log(status="Error", response_data=webhook.to_dict(),
-					exception=webhook.errors.full_messages(), rollback=True)
+				make_shopify_log(
+					status="Error",
+					response_data=webhook.to_dict(),
+					exception=webhook.errors.full_messages(),
+					rollback=True,
+				)
 
 	def unregister_webhooks(self):
 		deleted_webhooks = []

@@ -109,12 +109,8 @@ scheduler_events = {
 # Overriding Methods
 # ------------------------------
 
-override_doctype_class = {
-	"Connected App": "shopify_integration.hook_events.connected_app.ShopifyConnectedApp",
-}
-
 override_whitelisted_methods = {
-	"frappe.integrations.doctype.connected_app.connected_app.callback": "shopify_integration.api.callback"
+	"frappe.integrations.doctype.connected_app.connected_app.callback": "shopify_integration.oauth.callback"
 }
 #
 # each overriding function accepts a `data` argument;
