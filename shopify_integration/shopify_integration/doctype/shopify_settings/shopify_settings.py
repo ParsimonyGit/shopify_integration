@@ -2,6 +2,8 @@
 # Copyright (c) 2021, Parsimony, LLC and contributors
 # For license information, please see license.txt
 
+from typing import TYPE_CHECKING, Optional, Type
+
 from shopify.collection import PaginatedCollection, PaginatedIterator
 from shopify.resources import (
 	Order,
@@ -24,6 +26,12 @@ from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log imp
 	make_shopify_log,
 )
 
+if TYPE_CHECKING:
+	from shopify.base import ShopifyResource
+
+	from frappe.integrations.doctype.connected_app.connected_app import ConnectedApp
+	from frappe.integrations.doctype.token_cache.token_cache import TokenCache
+
 
 class ShopifySettings(Document):
 	api_version = "2022-01"
@@ -44,13 +52,36 @@ class ShopifySettings(Document):
 		if not frappe.conf.developer_mode:
 			self.update_webhooks()
 
-	def get_shopify_session(self, temp=False):
-		args = (self.shopify_url, self.api_version, self.get_password("password"))
+	def get_shopify_access_token(self):
+		if self.app_type != "Public":
+			return
+
+		connected_app: "ConnectedApp" = frappe.get_doc(
+			"Connected App", self.connected_app
+		)
+		token_cache: Optional["TokenCache"] = connected_app.get_token_cache(
+			frappe.session.user
+		)
+
+		if token_cache:
+			return token_cache.get_password("access_token")
+
+	def get_shopify_session(self, temp: bool = False):
+		token = None
+		if self.app_type == "Custom":
+			token = self.get_password("password")
+		elif self.app_type == "Public":
+			token = self.get_shopify_access_token()
+
+		if not token:
+			frappe.throw(_("Shopify access token or password not found"))
+
+		args = (self.shopify_url, self.api_version, token)
 		if temp:
 			return ShopifySession.temp(*args)
 		return ShopifySession(*args)
 
-	def get_resources(self, resource, *args, **kwargs):
+	def get_resources(self, resource: Type["ShopifyResource"], *args, **kwargs):
 		with self.get_shopify_session(temp=True):
 			resources = resource.find(*args, **kwargs)
 
@@ -153,14 +184,14 @@ class ShopifySettings(Document):
 
 	def unregister_webhooks(self):
 		deleted_webhooks = []
-		for d in self.webhooks:
+		for webhook in self.webhooks:
 			with self.get_shopify_session(temp=True):
-				if not Webhook.exists(d.webhook_id):
-					deleted_webhooks.append(d)
+				if not Webhook.exists(webhook.webhook_id):
+					deleted_webhooks.append(webhook)
 					continue
 
 			try:
-				existing_webhooks = self.get_webhooks(d.webhook_id)
+				existing_webhooks = self.get_webhooks(webhook.webhook_id)
 			except Exception as e:
 				make_shopify_log(status="Error", exception=e, rollback=True)
 				continue
@@ -171,7 +202,7 @@ class ShopifySettings(Document):
 				except Exception as e:
 					make_shopify_log(status="Error", exception=e, rollback=True)
 				else:
-					deleted_webhooks.append(d)
+					deleted_webhooks.append(webhook)
 
-		for d in deleted_webhooks:
-			self.remove(d)
+		for webhook in deleted_webhooks:
+			self.remove(webhook)
