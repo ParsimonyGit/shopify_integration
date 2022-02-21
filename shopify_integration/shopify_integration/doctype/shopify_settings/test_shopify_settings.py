@@ -7,7 +7,16 @@ import os
 import secrets
 import unittest
 
-from shopify import Address, Customer, Fulfillment, Image, LineItem, Order, Product, ShippingLine
+from shopify import (
+	Address,
+	Customer,
+	Fulfillment,
+	Image,
+	LineItem,
+	Order,
+	Product,
+	ShippingLine,
+)
 
 import frappe
 from frappe.core.doctype.data_import.data_import import import_doc
@@ -26,7 +35,12 @@ class ShopifySettings(unittest.TestCase):
 		frappe.set_user("Administrator")
 
 		# use the fixture data
-		import_doc(frappe.get_app_path("shopify_integration", "shopify_integration/doctype/shopify_settings/test_data/custom_field.json"))
+		import_doc(
+			frappe.get_app_path(
+				"shopify_integration",
+				"shopify_integration/doctype/shopify_settings/test_data/custom_field.json",
+			)
+		)
 
 		frappe.reload_doctype("Customer")
 		frappe.reload_doctype("Sales Order")
@@ -39,7 +53,11 @@ class ShopifySettings(unittest.TestCase):
 		shopify_settings = frappe.get_doc("Shopify Settings", "Test Shopify")
 
 		# create customer
-		with open(os.path.join(os.path.dirname(__file__), "test_data", "shopify_customer.json")) as shopify_customer:
+		with open(
+			os.path.join(
+				os.path.dirname(__file__), "test_data", "shopify_customer.json"
+			)
+		) as shopify_customer:
 			customer = Customer()
 			customer_data = json.loads(shopify_customer.read())
 			formatted_customer_data = prepare_customer_format(customer_data)
@@ -47,7 +65,9 @@ class ShopifySettings(unittest.TestCase):
 			create_customer(shopify_settings.name, customer)
 
 		# create item
-		with open(os.path.join(os.path.dirname(__file__), "test_data", "shopify_item.json")) as shopify_item:
+		with open(
+			os.path.join(os.path.dirname(__file__), "test_data", "shopify_item.json")
+		) as shopify_item:
 			item = Product()
 			product_data = json.loads(shopify_item.read())
 			formatted_product_data = prepare_product_format(product_data)
@@ -55,7 +75,9 @@ class ShopifySettings(unittest.TestCase):
 			make_item(shopify_settings, item)
 
 		# create order, invoice and delivery
-		with open(os.path.join(os.path.dirname(__file__), "test_data", "shopify_order.json")) as shopify_order:
+		with open(
+			os.path.join(os.path.dirname(__file__), "test_data", "shopify_order.json")
+		) as shopify_order:
 			order = Order()
 			order_data = json.loads(shopify_order.read())
 			formatted_order_data = prepare_order_format(order_data)
@@ -66,20 +88,32 @@ class ShopifySettings(unittest.TestCase):
 			create_shopify_delivery(shopify_settings.name, order, sales_order)
 
 		# verify sales order IDs
-		sales_order = get_shopify_document(shopify_settings.name, "Sales Order", order_id=order.id)
+		sales_order = get_shopify_document(
+			shopify_settings.name, "Sales Order", order_id=order.id
+		)
 		self.assertEqual(cstr(order.id), sales_order.shopify_order_id)
 
 		# verify customer IDs
 		shopify_order_customer_id = cstr(order.customer.id)
-		sales_order_customer_id = frappe.db.get_value("Customer", sales_order.customer, "shopify_customer_id")
+		sales_order_customer_id = frappe.db.get_value(
+			"Customer", sales_order.customer, "shopify_customer_id"
+		)
 		self.assertEqual(shopify_order_customer_id, sales_order_customer_id)
 
 		# verify sales invoice totals
-		sales_invoice = get_shopify_document(shopify_settings.name, "Sales Invoice", order_id=sales_order.shopify_order_id)
+		sales_invoice = get_shopify_document(
+			shopify_settings.name,
+			"Sales Invoice",
+			order_id=sales_order.shopify_order_id,
+		)
 		self.assertEqual(sales_invoice.rounded_total, sales_order.rounded_total)
 
 		# verify delivery notes created for all fulfillments
-		delivery_note = get_shopify_document(shopify_settings.name, "Delivery Note", order_id=sales_order.shopify_order_id)
+		delivery_note = get_shopify_document(
+			shopify_settings.name,
+			"Delivery Note",
+			order_id=sales_order.shopify_order_id,
+		)
 		self.assertEqual(len(delivery_note.items), len(order.fulfillments))
 
 
@@ -147,28 +181,30 @@ def setup_shopify():
 		return
 
 	shopify_settings = frappe.new_doc("Shopify Settings")
-	shopify_settings.update({
-		"app_type": "Private",
-		"shop_name": "Test Shopify",
-		"shopify_url": "test.myshopify.com",
-		"company": "_Test Company",
-		"api_key": secrets.token_urlsafe(nbytes=16),
-		"password": secrets.token_urlsafe(nbytes=16),
-		"shared_secret": secrets.token_urlsafe(nbytes=16),
-		"price_list": "_Test Price List",
-		"warehouse": "_Test Warehouse - _TC",
-		"account": "Cash - _TC",
-		"customer_group": "_Test Customer Group",
-		"cost_center": "Main - _TC",
-		"item_group": "_Test Item Group",
-		"enable_shopify": 0,
-		"sales_order_series": "SO-",
-		"sync_sales_invoice": 1,
-		"sales_invoice_series": "SINV-",
-		"sync_delivery_note": 1,
-		"delivery_note_series": "DN-",
-		"cash_bank_account": "Cash - _TC",
-		"tax_account": "Legal Expenses - _TC",
-		"shipping_account": "Legal Expenses - _TC",
-		"payment_fee_account": "Legal Expenses - _TC"
-	}).save(ignore_permissions=True)
+	shopify_settings.update(
+		{
+			"app_type": "Custom",
+			"shop_name": "Test Shopify",
+			"shopify_url": "test.myshopify.com",
+			"company": "_Test Company",
+			"api_key": secrets.token_urlsafe(nbytes=16),
+			"password": secrets.token_urlsafe(nbytes=16),
+			"shared_secret": secrets.token_urlsafe(nbytes=16),
+			"price_list": "_Test Price List",
+			"warehouse": "_Test Warehouse - _TC",
+			"account": "Cash - _TC",
+			"customer_group": "_Test Customer Group",
+			"cost_center": "Main - _TC",
+			"item_group": "_Test Item Group",
+			"enable_shopify": 0,
+			"sales_order_series": "SO-",
+			"sync_sales_invoice": 1,
+			"sales_invoice_series": "SINV-",
+			"sync_delivery_note": 1,
+			"delivery_note_series": "DN-",
+			"cash_bank_account": "Cash - _TC",
+			"tax_account": "Legal Expenses - _TC",
+			"shipping_account": "Legal Expenses - _TC",
+			"payment_fee_account": "Legal Expenses - _TC",
+		}
+	).save(ignore_permissions=True)
