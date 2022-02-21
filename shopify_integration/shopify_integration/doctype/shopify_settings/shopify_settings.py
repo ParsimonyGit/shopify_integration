@@ -196,9 +196,9 @@ class ShopifySettings(Document):
 				make_shopify_log(status="Error", exception=e, rollback=True)
 				continue
 
-			for webhook in existing_webhooks:
+			for existing_webhook in existing_webhooks:
 				try:
-					webhook.destroy()
+					existing_webhook.destroy()
 				except Exception as e:
 					make_shopify_log(status="Error", exception=e, rollback=True)
 				else:

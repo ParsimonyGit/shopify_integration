@@ -48,7 +48,7 @@ frappe.ui.form.on("Shopify Settings", {
 						<strong>Payouts:</strong> Read access (read_shopify_payments_payouts)
 					`);
 				} else if (frm.doc.app_type === "Public") {
-					frm.add_custom_button(__("Authorize"), async () => {
+					frm.add_custom_button(__("Authorize"), () => {
 						frappe.call({
 							method: "shopify_integration.oauth.initiate_web_application_flow",
 							args: { "settings": frm.doc },
@@ -60,7 +60,7 @@ frappe.ui.form.on("Shopify Settings", {
 					});
 				}
 
-				frm.add_custom_button(__("Products"), async () => {
+				frm.add_custom_button(__("Products"), () => {
 					frm.call({
 						doc: frm.doc,
 						method: "sync_products",
@@ -76,7 +76,7 @@ frappe.ui.form.on("Shopify Settings", {
 					})
 				}, __("Sync"));
 
-				frm.add_custom_button(__("Payouts"), async () => {
+				frm.add_custom_button(__("Payouts"), () => {
 					frappe.prompt(
 						[
 							{
