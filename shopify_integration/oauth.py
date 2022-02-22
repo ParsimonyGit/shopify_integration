@@ -1,7 +1,7 @@
 import binascii
 import json
 import os
-from typing import TYPE_CHECKING, Dict, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
 from shopify.session import Session as ShopifySession
 from shopify.utils.shop_url import sanitize_shop_domain
@@ -18,7 +18,36 @@ if TYPE_CHECKING:
 
 
 @frappe.whitelist()
-def initiate_web_application_flow(settings: str):
+def install_custom_app(*args, **kwargs):
+	# validate shop URL in response
+	shop_url = sanitize_shop_domain(kwargs.get("shop"))
+	if not shop_url:
+		frappe.throw(_("Invalid shop URL"))
+
+	shops: List["ShopifySettings"] = frappe.get_all(
+		"Shopify Settings",
+		filters={
+			"enable_shopify": True,
+			"shopify_url": ["LIKE", f"%{kwargs.get('shop')}%"],
+		},
+		fields=["name", "connected_app"],
+	)
+
+	if not shops:
+		frappe.throw(_(f"No Shopify Settings found for {kwargs.get('shop')}"))
+
+	shopify_settings = shops[0]
+
+	# remove Frappe's argument to properly validate HMAC
+	kwargs.pop("cmd")
+
+	auth_url = initiate_web_application_flow(shopify_settings)
+	frappe.local.response["type"] = "redirect"
+	frappe.local.response["location"] = auth_url
+
+
+@frappe.whitelist()
+def initiate_web_application_flow(settings: Union["ShopifySettings", str]):
 	"""Return an authorization URL for the user, and save the state in Token Cache."""
 
 	if isinstance(settings, str):
@@ -122,7 +151,6 @@ def get_shopify_settings(connected_app: "ConnectedApp") -> Optional["ShopifySett
 		"Shopify Settings",
 		filters={
 			"enable_shopify": True,
-			"app_type": "Public",
 			"connected_app": connected_app.name,
 		},
 	)
