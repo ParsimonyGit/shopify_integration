@@ -129,7 +129,6 @@ def validate_request(*args, **kwargs):
 
 
 def get_oauth_details(*args, **kwargs):
-	# compare token cache states
 	path = frappe.request.path[1:].split("/")
 	connected_app: "ConnectedApp" = frappe.get_doc("Connected App", path[3])
 	token_cache: "TokenCache" = connected_app.get_token_cache(frappe.session.user)
@@ -140,6 +139,7 @@ def get_oauth_details(*args, **kwargs):
 		token_cache.state = kwargs.get("state")
 		token_cache.save(ignore_permissions=True)
 
+	# compare token cache states
 	if kwargs.get("state") != token_cache.state:
 		frappe.throw(_("Invalid state"))
 
