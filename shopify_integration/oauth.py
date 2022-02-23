@@ -117,7 +117,8 @@ def validate_request(*args, **kwargs):
 	if frappe.request.method != "GET":
 		frappe.throw(_("Invalid request method: {}").format(frappe.request.method))
 
-	# validate redirect URI parameters
+	# validate redirect URI parameters; check if connected app is available
+	# example request path: "/api/method/path.to.method/connected_app_name"
 	path = frappe.request.path[1:].split("/")
 	if len(path) != 4 or not path[3]:
 		frappe.throw(_("Invalid parameters"))
@@ -129,7 +130,10 @@ def validate_request(*args, **kwargs):
 
 
 def get_oauth_details(*args, **kwargs):
+	# check if connected app is available; example request path:
+	# "/api/method/path.to.method/connected_app_name"
 	path = frappe.request.path[1:].split("/")
+
 	connected_app: "ConnectedApp" = frappe.get_doc("Connected App", path[3])
 	token_cache: "TokenCache" = connected_app.get_token_cache(frappe.session.user)
 	if not token_cache:
