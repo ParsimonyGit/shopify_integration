@@ -49,11 +49,11 @@ class ShopifySettings(Document):
 		}
 
 	def validate(self):
-		if not frappe.conf.developer_mode:
+		if not frappe.conf.developer_mode and self.get_shopify_access_token():
 			self.update_webhooks()
 
 	def get_shopify_access_token(self):
-		if self.app_type != "Public":
+		if self.app_type not in ("Custom (OAuth)", "Public"):
 			return
 
 		connected_app: "ConnectedApp" = frappe.get_doc(
@@ -70,7 +70,7 @@ class ShopifySettings(Document):
 		token = None
 		if self.app_type == "Custom":
 			token = self.get_password("password")
-		elif self.app_type == "Public":
+		elif self.app_type in ("Custom (OAuth)", "Public"):
 			token = self.get_shopify_access_token()
 
 		if not token:
@@ -176,6 +176,7 @@ class ShopifySettings(Document):
 				)
 			else:
 				make_shopify_log(
+					shop_name=self.name,
 					status="Error",
 					response_data=webhook.to_dict(),
 					exception=webhook.errors.full_messages(),
@@ -193,14 +194,18 @@ class ShopifySettings(Document):
 			try:
 				existing_webhooks = self.get_webhooks(webhook.webhook_id)
 			except Exception as e:
-				make_shopify_log(status="Error", exception=e, rollback=True)
+				make_shopify_log(
+					shop_name=self.name, status="Error", exception=e, rollback=True
+				)
 				continue
 
 			for existing_webhook in existing_webhooks:
 				try:
 					existing_webhook.destroy()
 				except Exception as e:
-					make_shopify_log(status="Error", exception=e, rollback=True)
+					make_shopify_log(
+						shop_name=self.name, status="Error", exception=e, rollback=True
+					)
 				else:
 					deleted_webhooks.append(webhook)
 

@@ -56,7 +56,7 @@ def validate_webhooks_request(shop: "ShopifySettings", hmac_key: str):
 	key = None
 	if shop.app_type == "Custom":
 		key = shop.shared_secret.encode("utf8")
-	elif shop.app_type == "Public":
+	elif shop.app_type in ("Custom (OAuth)", "Public"):
 		connected_app: "ConnectedApp" = frappe.get_doc(
 			"Connected App", shop.connected_app
 		)
@@ -79,7 +79,7 @@ def validate_webhooks_request(shop: "ShopifySettings", hmac_key: str):
 
 def enqueue_webhook_event(shop_name: str, data: Dict, event: str = "orders/create"):
 	frappe.set_user("Administrator")
-	log = create_shopify_log(data, event)
+	log = create_shopify_log(shop_name, data, event)
 	order = Order()
 	order.attributes.update(data)
 	frappe.enqueue(
@@ -91,10 +91,11 @@ def enqueue_webhook_event(shop_name: str, data: Dict, event: str = "orders/creat
 	)
 
 
-def create_shopify_log(data: Dict, event: str = "orders/create"):
+def create_shopify_log(shop_name: str, data: Dict, event: str = "orders/create"):
 	log: "ShopifyLog" = frappe.get_doc(
 		{
 			"doctype": "Shopify Log",
+			"shop": shop_name,
 			"request_data": json.dumps(data, indent=1),
 			"method": SHOPIFY_WEBHOOK_TOPIC_MAPPER.get(event),
 		}

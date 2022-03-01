@@ -42,7 +42,7 @@ def sync_items_from_shopify(shop_name: str):
 	try:
 		shopify_items = shopify_settings.get_products(status="active")
 	except Exception as e:
-		make_shopify_log(status="Error", exception=e, rollback=True)
+		make_shopify_log(shop_name, status="Error", exception=e, rollback=True)
 		return
 
 	for shopify_item in shopify_items:

@@ -10,6 +10,7 @@ frappe.ui.form.on('Shopify Log', {
 				frappe.call({
 					method: "shopify_integration.shopify_integration.doctype.shopify_log.shopify_log.resync",
 					args: {
+						shop_name: frm.doc.shop,
 						method: frm.doc.method,
 						name: frm.doc.name,
 						request_data: frm.doc.request_data

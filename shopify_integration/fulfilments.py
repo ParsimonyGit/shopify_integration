@@ -65,10 +65,10 @@ def create_shopify_delivery(
 	try:
 		delivery_notes = create_delivery_notes(shop_name, shopify_order, sales_order)
 	except Exception as e:
-		make_shopify_log(status="Error", response_data=shopify_order.to_dict(), exception=e, rollback=rollback)
+		make_shopify_log(shop_name, status="Error", response_data=shopify_order.to_dict(), exception=e, rollback=rollback)
 		return []
 	else:
-		make_shopify_log(status="Success", response_data=shopify_order.to_dict())
+		make_shopify_log(shop_name, status="Success", response_data=shopify_order.to_dict())
 		return delivery_notes
 
 

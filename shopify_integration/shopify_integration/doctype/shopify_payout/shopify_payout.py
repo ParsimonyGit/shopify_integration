@@ -103,7 +103,7 @@ class ShopifyPayout(Document):
 				try:
 					doc.cancel()
 				except Exception as e:
-					make_shopify_log(status="Error", exception=e)
+					make_shopify_log(settings.name, status="Error", exception=e)
 
 				transaction.db_set(doctype_field, None)
 

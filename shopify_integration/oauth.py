@@ -16,8 +16,10 @@ if TYPE_CHECKING:
 		ShopifySettings,
 	)
 
+DEFAULT_TOKEN_USER = "Administrator"
 
-@frappe.whitelist()
+
+@frappe.whitelist(allow_guest=True)
 def install_custom_app(*args, **kwargs):
 	# validate shop URL in response
 	shop_url = sanitize_shop_domain(kwargs.get("shop"))
@@ -74,10 +76,10 @@ def initiate_web_application_flow(settings: Union["ShopifySettings", str]):
 	)
 
 	# create an initial token cache for the user
-	token_cache = connected_app.get_token_cache(frappe.session.user)
+	token_cache = connected_app.get_token_cache(DEFAULT_TOKEN_USER)
 	if not token_cache:
 		token_cache = frappe.new_doc("Token Cache")
-		token_cache.user = frappe.session.user
+		token_cache.user = DEFAULT_TOKEN_USER
 		token_cache.connected_app = connected_app.name
 	token_cache.state = state
 	token_cache.save(ignore_permissions=True)
@@ -105,6 +107,9 @@ def callback(*args, **kwargs):
 			"access_token": access_token,
 		}
 	)
+
+	# once the access token is fetched, register Shopify webhooks
+	shopify_settings.register_webhooks()
 
 	frappe.local.response["type"] = "redirect"
 	frappe.local.response["location"] = (
@@ -135,10 +140,10 @@ def get_oauth_details(*args, **kwargs):
 	path = frappe.request.path[1:].split("/")
 
 	connected_app: "ConnectedApp" = frappe.get_doc("Connected App", path[3])
-	token_cache: "TokenCache" = connected_app.get_token_cache(frappe.session.user)
+	token_cache: "TokenCache" = connected_app.get_token_cache(DEFAULT_TOKEN_USER)
 	if not token_cache:
 		token_cache = frappe.new_doc("Token Cache")
-		token_cache.user = frappe.session.user
+		token_cache.user = DEFAULT_TOKEN_USER
 		token_cache.connected_app = connected_app.name
 		token_cache.state = kwargs.get("state")
 		token_cache.save(ignore_permissions=True)
