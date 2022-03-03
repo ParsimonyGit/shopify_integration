@@ -49,8 +49,7 @@ class ShopifySettings(Document):
 		}
 
 	def validate(self):
-		if not frappe.conf.developer_mode and self.get_shopify_access_token():
-			self.update_webhooks()
+		self.update_webhooks()
 
 	def get_shopify_access_token(self):
 		if self.app_type not in ("Custom (OAuth)", "Public"):
@@ -153,6 +152,15 @@ class ShopifySettings(Document):
 		)
 
 	def update_webhooks(self):
+		if frappe.conf.developer_mode:
+			return
+
+		if (
+			self.app_type in ("Custom (OAuth)", "Public")
+			and not self.get_shopify_access_token()
+		):
+			return
+
 		if self.enable_shopify and not self.webhooks:
 			self.register_webhooks()
 		elif not self.enable_shopify:
