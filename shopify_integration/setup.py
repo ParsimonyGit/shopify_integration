@@ -61,8 +61,9 @@ def setup_custom_fields(args=None):
 			dict(fieldname="integration_doctype", label="Integration DocType",
 				fieldtype="Link", options="DocType", insert_after="sb_integration",
 				hidden=1, print_hide=1),
-			dict(fieldname="integration_doc", label="Integration Doc", fieldtype="Data",
-				insert_after="integration_doctype", read_only=1, print_hide=1)
+			dict(fieldname="integration_doc", label="Integration Doc", fieldtype="Dynamic Link",
+				insert_after="integration_doctype", options="integration_doctype", read_only=1,
+				print_hide=1),
 		],
 		"Sales Order": [
 			dict(fieldname="sb_shopify", label="Shopify", fieldtype="Section Break",
