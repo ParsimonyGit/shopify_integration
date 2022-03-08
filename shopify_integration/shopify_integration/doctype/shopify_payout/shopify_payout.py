@@ -71,7 +71,10 @@ class ShopifyPayout(Document):
 			if not transaction.source_order_id:
 				continue
 
-			shopify_orders = settings.get_orders(cint(transaction.source_order_id))
+			shopify_orders = settings.get_orders(
+				cint(transaction.source_order_id), fields="cancelled_at"
+			)
+
 			if not shopify_orders:
 				continue
 

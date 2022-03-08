@@ -3,17 +3,22 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Union
 from shopify import Product, Variant
 
 import frappe
-from erpnext import get_default_company
 from frappe import _
 from frappe.utils import cint, cstr
 
-from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log import make_shopify_log
+from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log import (
+	make_shopify_log,
+)
 
 if TYPE_CHECKING:
+	from shopify import LineItem, Option, Order
+
 	from erpnext.stock.doctype.item.item import Item
 	from erpnext.stock.doctype.item_attribute.item_attribute import ItemAttribute
-	from shopify import LineItem, Option, Order
-	from shopify_integration.shopify_integration.doctype.shopify_settings.shopify_settings import ShopifySettings
+
+	from shopify_integration.shopify_integration.doctype.shopify_settings.shopify_settings import (
+		ShopifySettings,
+	)
 
 SHOPIFY_VARIANTS_ATTR_LIST = ["option1", "option2", "option3"]
 
@@ -126,16 +131,11 @@ def make_item(
 	if isinstance(shopify_item, Product):
 		attributes = create_product_attributes(shopify_item)
 
-	sync_item(
-		shopify_settings=shopify_settings,
-		shopify_item=shopify_item,
-		attributes=attributes
-	)
-	sync_item_variants(
-		shopify_settings=shopify_settings,
-		shopify_item=shopify_item,
-		attributes=attributes
-	)
+	if attributes:
+		sync_item(shopify_settings, shopify_item, attributes)
+		sync_item_variants(shopify_settings, shopify_item, attributes)
+	else:
+		sync_item(shopify_settings, shopify_item)
 
 
 def make_item_by_title(shopify_settings: "ShopifySettings", line_item_title: str):
@@ -148,11 +148,11 @@ def make_item_by_title(shopify_settings: "ShopifySettings", line_item_title: str
 		"shopify_description": line_item_title,
 		"item_group": shopify_settings.item_group,
 		"stock_uom": frappe.db.get_single_value("Stock Settings", "stock_uom"),
-		"default_warehouse": shopify_settings.warehouse,
 		"integration_doctype": "Shopify Settings",
 		"integration_doc": shopify_settings.name,
 		"item_defaults": [{
-			"company": get_default_company()
+			"company": shopify_settings.company,
+			"default_warehouse": shopify_settings.warehouse,
 		}]
 	}
 
@@ -205,9 +205,12 @@ def has_variants(shopify_item: Product):
 
 
 def update_item_attribute_values(item_attr: "ItemAttribute", values: List[str]):
-	existing_attribute_values = [
-		attr.attribute_value.lower() for attr in item_attr.item_attribute_values
-	]
+	if item_attr.is_new():
+		existing_attribute_values = []
+	else:
+		existing_attribute_values = [
+			attr.attribute_value.lower() for attr in item_attr.item_attribute_values
+		]
 
 	for attr_value in values:
 		if attr_value.lower() not in existing_attribute_values:
@@ -238,6 +241,9 @@ def sync_item(
 		update (bool, optional): `True` if existing items should be updated, otherwise `False`.
 			Defaults to False.
 	"""
+
+	if not attributes:
+		attributes = []
 
 	item_title = shopify_item.attributes.get("title", "").strip()
 	item_description = shopify_item.attributes.get("body_html") or item_title
@@ -279,12 +285,16 @@ def sync_item(
 		"stock_uom": WEIGHT_UOM_MAP.get(shopify_item.attributes.get("uom"))
 		or frappe.db.get_single_value("Stock Settings", "stock_uom"),
 		"shopify_sku": shopify_item.attributes.get("sku"),
-		"default_warehouse": shopify_settings.warehouse,
 		"weight_uom": WEIGHT_UOM_MAP.get(shopify_item.attributes.get("weight_unit")),
 		"weight_per_unit": shopify_item.attributes.get("weight"),
 		"integration_doctype": "Shopify Settings",
 		"integration_doc": shopify_settings.name,
-		"item_defaults": [{"company": get_default_company()}],
+		"item_defaults": [
+			{
+				"company": shopify_settings.company,
+				"default_warehouse": shopify_settings.warehouse,
+			}
+		],
 	}
 
 	if not is_item_exists(item_data, attributes, variant_of=variant_of):
@@ -378,48 +388,50 @@ def sync_item_variants(
 	if not product_id:
 		return
 
-	template_item = frappe.db.get_value("Item",
+	template_item = frappe.db.get_value(
+		"Item",
 		filters={"shopify_product_id": product_id},
 		fieldname=["name", "stock_uom"],
-		as_dict=True)
+		as_dict=True,
+	)
 
 	if template_item:
+		variant: Variant
 		for variant in shopify_item.attributes.get("variants", []):
-			variant: Variant
-
 			for index, variant_attr in enumerate(SHOPIFY_VARIANTS_ATTR_LIST):
-				if variant.attributes.get(variant_attr):
-					attributes[index].update({
-						"attribute_value": get_attribute_value(
-							variant.attributes.get(variant_attr),
-							attributes[index]
-						)
-					})
+				if index < len(attributes) and variant.attributes.get(variant_attr):
+					attributes[index].update(
+						{
+							"attribute_value": get_attribute_value(
+								variant.attributes.get(variant_attr),
+								attributes[index],
+							)
+						}
+					)
 
 			sync_item(
 				shopify_settings=shopify_settings,
 				shopify_item=variant,
 				attributes=attributes,
-				variant_of=template_item.name
+				variant_of=template_item.name,
 			)
 
 
-def get_attribute_value(variant_attr_val: str, attribute: Dict):
-	attribute_value = frappe.db.sql(
-		"""
-		SELECT
-			attribute_value
-		FROM
-			`tabItem Attribute Value`
-		WHERE
-			parent = %s
-				AND (abbr = %s OR attribute_value = %s)
-		""",
-		(attribute["attribute"], variant_attr_val, variant_attr_val),
-		as_list=1
+def get_attribute_value(variant_attr_val: str, attribute: Dict = None):
+	if not attribute or not attribute.get("attribute"):
+		return cint(variant_attr_val)
+
+	attribute_values = frappe.get_all(
+		"Item Attribute Value",
+		filters={"parent": attribute.get("attribute")},
+		or_filters={"abbr": variant_attr_val, "attribute_value": variant_attr_val},
+		pluck="attribute_value",
 	)
 
-	return attribute_value[0][0] if len(attribute_value) > 0 else cint(variant_attr_val)
+	if not attribute_values:
+		return cint(variant_attr_val)
+
+	return attribute_values[0]
 
 
 def get_item_group(product_type: str = str()):
