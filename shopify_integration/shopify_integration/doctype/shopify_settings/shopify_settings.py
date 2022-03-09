@@ -38,6 +38,7 @@ class ShopifySettings(Document):
 
 	@frappe.whitelist()
 	@staticmethod
+	@frappe.whitelist()
 	def get_series():
 		return {
 			"sales_order_series": get_default_naming_series("Sales Order")
