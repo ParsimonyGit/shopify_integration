@@ -18,6 +18,7 @@ class ShopifySettings(Document):
 	api_version = "2021-01"
 
 	@staticmethod
+	@frappe.whitelist()
 	def get_series():
 		return {
 			"sales_order_series": frappe.get_meta("Sales Order").get_options("naming_series") or "SO-Shopify-",
@@ -79,11 +80,13 @@ class ShopifySettings(Document):
 	def get_webhooks(self, *args, **kwargs):
 		return self.get_resources(Webhook, *args, **kwargs)
 
+	@frappe.whitelist()
 	def sync_products(self):
 		"Pull and sync products from Shopify, including variants"
 		from shopify_integration.products import sync_items_from_shopify
 		frappe.enqueue(method=sync_items_from_shopify, queue="long", is_async=True, **{"shop_name": self.name})
 
+	@frappe.whitelist()
 	def sync_payouts(self, start_date: str = str()):
 		"Pull and sync payouts from Shopify Payments transactions"
 		from shopify_integration.payouts import create_shopify_payouts
