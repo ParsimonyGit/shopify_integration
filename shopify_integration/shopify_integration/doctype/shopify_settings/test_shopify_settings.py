@@ -20,6 +20,7 @@ from shopify import (
 
 import frappe
 from frappe.core.doctype.data_import.data_import import import_doc
+from frappe.test_runner import make_test_records
 from frappe.utils import cstr
 
 from shopify_integration.customers import create_customer
@@ -46,6 +47,9 @@ class ShopifySettings(unittest.TestCase):
 		frappe.reload_doctype("Sales Order")
 		frappe.reload_doctype("Delivery Note")
 		frappe.reload_doctype("Sales Invoice")
+
+		if not frappe.db.get_value("Customer", "_Test Customer 1"):
+			make_test_records("Customer")
 
 		setup_shopify()
 
