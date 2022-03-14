@@ -7,6 +7,7 @@ from shopify import Order
 
 import frappe
 from frappe import _
+from frappe.utils import get_url
 
 SHOPIFY_WEBHOOK_TOPIC_MAPPER = {
 	"orders/create": "shopify_integration.orders.create_shopify_documents",
@@ -102,4 +103,4 @@ def get_shop_for_webhook():
 
 def get_webhook_url():
 	# Shopify only supports HTTPS requests
-	return f"https://{frappe.request.host}/api/method/shopify_integration.webhooks.store_request_data"
+	return f"{get_url()}/api/method/shopify_integration.webhooks.store_request_data"
