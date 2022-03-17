@@ -2,6 +2,8 @@
 # Copyright (c) 2021, Parsimony, LLC and contributors
 # For license information, please see license.txt
 
+from urllib.error import HTTPError
+
 from shopify.collection import PaginatedCollection, PaginatedIterator
 from shopify.resources import Order, Payouts, Product, Refund, Transactions, Variant, Webhook
 from shopify.session import Session as ShopifySession
@@ -15,7 +17,7 @@ from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log imp
 
 
 class ShopifySettings(Document):
-	api_version = "2021-01"
+	api_version = "2022-01"
 
 	@staticmethod
 	@frappe.whitelist()
@@ -47,17 +49,35 @@ class ShopifySettings(Document):
 			# this is a side-effect from the way the library works, since it
 			# doesn't process the "limit" keyword
 			if "limit" in kwargs:
-				return resources if isinstance(resources, PaginatedCollection) else [resources]
+				return (
+					resources
+					if isinstance(resources, PaginatedCollection)
+					else [resources]
+				)
 
-			if isinstance(resources, PaginatedCollection):
-				# Shopify's API limits responses to 50 per page by default;
-				# we keep calling to retrieve all the resource documents
-				paged_resources = PaginatedIterator(resources)
-				return [resource for page in paged_resources for resource in page]
+			if not isinstance(resources, PaginatedCollection):
+				# Shopify's API returns instance objects instead of collections
+				# for single-result responses
+				return [resources]
 
-			# Shopify's API returns instance objects instead of collections
-			# for single-result responses
-			return [resources]
+			# Shopify's API limits responses to 50 per page by default;
+			# we keep calling to retrieve all the resource documents
+			all_resources = []
+			paged_resources = PaginatedIterator(resources)
+
+			next_url = paged_resources.collection.next_page_url
+			while paged_resources.collection.has_next_page():
+				try:
+					for page in paged_resources:
+						next_url = page.next_page_url
+						for resource in page:
+							all_resources.append(resource)
+				except HTTPError as e:
+					paged_resources = PaginatedIterator(
+						resource.find(from_=next_url)
+					)
+
+			return all_resources
 
 	def get_orders(self, *args, **kwargs):
 		return self.get_resources(Order, *args, **kwargs)
