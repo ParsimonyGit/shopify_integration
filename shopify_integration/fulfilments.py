@@ -97,7 +97,7 @@ def create_delivery_notes(
 	fulfillment: "Fulfillment"
 	for fulfillment in shopify_order.attributes.get("fulfillments"):
 		existing_delivery = frappe.db.get_value("Delivery Note",
-			{"shopify_fulfillment_id": fulfillment.id}, "name")
+			{"docstatus": 1, "shopify_fulfillment_id": fulfillment.id}, "name")
 
 		if not existing_delivery:
 			dn: "DeliveryNote" = make_delivery_note(sales_order.name)
