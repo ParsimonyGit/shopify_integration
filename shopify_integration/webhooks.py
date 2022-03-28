@@ -8,6 +8,7 @@ from shopify import Order
 
 import frappe
 from frappe import _
+from frappe.utils import get_url
 
 if TYPE_CHECKING:
 	from frappe.integrations.doctype.connected_app.connected_app import ConnectedApp
@@ -121,4 +122,4 @@ def get_shop_for_webhook() -> Optional[str]:
 
 def get_webhook_url():
 	# Shopify only supports HTTPS requests
-	return f"https://{frappe.request.host}/api/method/shopify_integration.webhooks.store_request_data"
+	return f"{get_url()}/api/method/shopify_integration.webhooks.store_request_data"
