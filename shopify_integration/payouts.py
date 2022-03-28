@@ -85,6 +85,7 @@ def create_shopify_payout(shop_name: str, payout_id: str):
 		] = shopify_settings.get_payout_transactions(payout_id=payout_id)
 	except Exception as e:
 		make_shopify_log(
+			shop_name=shop_name,
 			status="Payout Transactions Error",
 			response_data=payout.to_dict(),
 			exception=e,
@@ -125,7 +126,12 @@ def get_payouts(shopify_settings: "ShopifySettings", start_date: str = str()):
 	try:
 		payouts = shopify_settings.get_payouts(**kwargs)
 	except Exception as e:
-		make_shopify_log(status="Payout Error", exception=e, rollback=True)
+		make_shopify_log(
+			shop_name=shopify_settings.name,
+			status="Payout Error",
+			exception=e,
+			rollback=True
+		)
 		return []
 	else:
 		return payouts
@@ -214,6 +220,7 @@ def _create_shopify_payout(shopify_settings: "ShopifySettings", payout: "Payouts
 	except Exception as e:
 		payout_doc.save(ignore_permissions=True)
 		make_shopify_log(
+			shop_name=shopify_settings.name,
 			status="Payout Transactions Error",
 			response_data=payout.to_dict(),
 			exception=e,
