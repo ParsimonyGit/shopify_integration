@@ -35,6 +35,9 @@ class ShopifySettings(unittest.TestCase):
 	def setUp(self):
 		frappe.set_user("Administrator")
 
+		if not frappe.db.get_value("Customer", "_Test Customer 1"):
+			make_test_records("Customer", force=True)
+
 		# use the fixture data
 		import_doc(
 			frappe.get_app_path(
@@ -47,9 +50,6 @@ class ShopifySettings(unittest.TestCase):
 		frappe.reload_doctype("Sales Order")
 		frappe.reload_doctype("Delivery Note")
 		frappe.reload_doctype("Sales Invoice")
-
-		if not frappe.db.get_value("Customer", "_Test Customer 1"):
-			make_test_records("Customer")
 
 		setup_shopify()
 
