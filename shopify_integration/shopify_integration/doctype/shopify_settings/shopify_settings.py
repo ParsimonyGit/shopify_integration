@@ -15,7 +15,7 @@ from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log imp
 
 
 class ShopifySettings(Document):
-	api_version = "2021-01"
+	api_version = "2022-04"
 
 	@staticmethod
 	@frappe.whitelist()
