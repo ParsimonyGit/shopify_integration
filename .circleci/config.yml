@@ -23,7 +23,7 @@ jobs:
           name: Run Tests
           working_directory: ~/shopify-bench/sites
           command: |
-            bench --site dev.localhost run-parallel-tests --app shopify_integration
+            bench --site dev.localhost run-tests --app shopify_integration
   release:
     docker:
       - image: node:lts
