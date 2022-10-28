@@ -34,9 +34,8 @@ if TYPE_CHECKING:
 
 
 class ShopifySettings(Document):
-	api_version = "2022-04"
+	api_version = "2022-07"
 
-	@frappe.whitelist()
 	@staticmethod
 	@frappe.whitelist()
 	def get_series():
@@ -59,6 +58,7 @@ class ShopifySettings(Document):
 		connected_app: "ConnectedApp" = frappe.get_doc(
 			"Connected App", self.connected_app
 		)
+
 		token_cache: Optional["TokenCache"] = connected_app.get_token_cache(
 			frappe.session.user
 		)
