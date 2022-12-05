@@ -61,7 +61,7 @@ def create_shopify_order(shop_name: str, shopify_order: "Order", log_id: str = s
 	existing_so = get_shopify_document(shop_name=shop_name, doctype="Sales Order", order=shopify_order)
 	if existing_so:
 		existing_so: "SalesOrder"
-		make_shopify_log(status="Skipped", response_data=shopify_order.to_dict())
+		make_shopify_log(shop_name, status="Skipped", response_data=shopify_order.to_dict())
 		return existing_so
 
 	try:
@@ -69,9 +69,9 @@ def create_shopify_order(shop_name: str, shopify_order: "Order", log_id: str = s
 		validate_item(shop_name, shopify_order)
 		sales_order = create_sales_order(shop_name, shopify_order)
 	except Exception as e:
-		make_shopify_log(status="Error", response_data=shopify_order.to_dict(), exception=e)
+		make_shopify_log(shop_name, status="Error", response_data=shopify_order.to_dict(), exception=e)
 	else:
-		make_shopify_log(status="Success", response_data=shopify_order.to_dict())
+		make_shopify_log(shop_name, status="Success", response_data=shopify_order.to_dict())
 		return sales_order
 
 
@@ -204,7 +204,7 @@ def cancel_shopify_order(shop_name: str, order: "Order", log_id: str = str()):
 				doc.flags.ignore_links = True
 				doc.cancel()
 			except Exception as e:
-				make_shopify_log(status="Error", response_data=order.to_dict(),
+				make_shopify_log(shop_name, status="Error", response_data=order.to_dict(),
 					exception=e, rollback=True)
 
 		# update the financial status in all linked Shopify Payouts

@@ -84,13 +84,11 @@ before_migrate = "shopify_integration.setup.setup_custom_fields"
 # ---------------
 # Hook on document methods and events
 
-# doc_events = {
-# 	"*": {
-# 		"on_update": "method",
-# 		"on_cancel": "method",
-# 		"on_trash": "method"
-# 	}
-# }
+doc_events = {
+	"Connected App": {
+		"validate": "shopify_integration.hook_events.connected_app.validate_redirect_uri",
+	}
+}
 
 # Scheduled Tasks
 # ---------------
@@ -108,11 +106,11 @@ scheduler_events = {
 
 # Overriding Methods
 # ------------------------------
-#
+
 # override_whitelisted_methods = {
 # 	"frappe.desk.doctype.event.event.get_events": "shopify_integration.event.get_events"
 # }
-#
+
 # each overriding function accepts a `data` argument;
 # generated from the base implementation of the doctype dashboard,
 # along with any modifications made in other Frappe apps

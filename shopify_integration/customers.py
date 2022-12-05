@@ -11,7 +11,9 @@ if TYPE_CHECKING:
 
 def validate_customer(shop_name: str, shopify_order: "Order"):
 	customer = shopify_order.attributes.get("customer", frappe._dict())
-	if customer.id and not frappe.db.get_value("Customer", {"shopify_customer_id": customer.id}, "name"):
+	if customer.id and not frappe.db.get_value(
+		"Customer", {"shopify_customer_id": customer.id}, "name"
+	):
 		create_customer(shop_name, customer)
 
 
@@ -26,15 +28,19 @@ def create_customer(shop_name: str, shopify_customer: "ShopifyCustomer"):
 		cust_name = shopify_customer.attributes.get("email")
 
 	try:
-		customer: "Customer" = frappe.get_doc({
-			"doctype": "Customer",
-			"name": shopify_customer.id,
-			"customer_name": cust_name,
-			"shopify_customer_id": shopify_customer.id,
-			"customer_group": frappe.db.get_value("Shopify Settings", shop_name, "customer_group"),
-			"territory": get_root_of("Territory"),
-			"customer_type": _("Individual")
-		})
+		customer: "Customer" = frappe.get_doc(
+			{
+				"doctype": "Customer",
+				"name": shopify_customer.id,
+				"customer_name": cust_name,
+				"shopify_customer_id": shopify_customer.id,
+				"customer_group": frappe.db.get_value(
+					"Shopify Settings", shop_name, "customer_group"
+				),
+				"territory": get_root_of("Territory"),
+				"customer_type": _("Individual"),
+			}
+		)
 		customer.flags.ignore_mandatory = True
 		customer.insert(ignore_permissions=True)
 
@@ -56,24 +62,23 @@ def create_customer_address(customer: "Customer", shopify_customer: "ShopifyCust
 
 	address: "Address"
 	for index, address in enumerate(addresses):
-		frappe.get_doc({
-			"doctype": "Address",
-			"shopify_address_id": address.id,
-			"address_title": get_address_title(customer.customer_name, index),
-			"address_type": "Billing",
-			"address_line1": address.address1 or "Address 1",
-			"address_line2": address.address2,
-			"city": address.city or "City",
-			"state": address.province,
-			"pincode": address.zip,
-			"country": address.country,
-			"phone": address.phone,
-			"email_id": shopify_customer.email,
-			"links": [{
-				"link_doctype": "Customer",
-				"link_name": customer.name
-			}]
-		}).insert(ignore_mandatory=True)
+		frappe.get_doc(
+			{
+				"doctype": "Address",
+				"shopify_address_id": address.id,
+				"address_title": get_address_title(customer.customer_name, index),
+				"address_type": "Billing",
+				"address_line1": address.address1 or "Address 1",
+				"address_line2": address.address2,
+				"city": address.city or "City",
+				"state": address.province,
+				"pincode": address.zip,
+				"country": address.country,
+				"phone": address.phone,
+				"email_id": shopify_customer.email,
+				"links": [{"link_doctype": "Customer", "link_name": customer.name}],
+			}
+		).insert(ignore_mandatory=True)
 
 
 def get_address_title(customer_name: str, index: int):

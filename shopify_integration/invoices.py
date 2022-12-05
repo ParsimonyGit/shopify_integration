@@ -40,11 +40,11 @@ def prepare_sales_invoice(shop_name: str, order: "Order", log_id: str = str()):
 		if sales_order:
 			sales_order: "SalesOrder"
 			create_sales_invoice(shop_name, order, sales_order)
-			make_shopify_log(status="Success", response_data=order.to_dict())
+			make_shopify_log(shop_name, status="Success", response_data=order.to_dict())
 		else:
-			make_shopify_log(status="Skipped", response_data=order.to_dict())
+			make_shopify_log(shop_name, status="Skipped", response_data=order.to_dict())
 	except Exception as e:
-		make_shopify_log(status="Error", response_data=order.to_dict(), exception=e, rollback=True)
+		make_shopify_log(shop_name, status="Error", response_data=order.to_dict(), exception=e, rollback=True)
 
 
 def create_shopify_invoice(
@@ -82,9 +82,9 @@ def create_shopify_invoice(
 				sales_invoice=sales_invoice
 			)
 	except Exception as e:
-		make_shopify_log(status="Error", response_data=shopify_order.to_dict(), exception=e)
+		make_shopify_log(shop_name, status="Error", response_data=shopify_order.to_dict(), exception=e)
 	else:
-		make_shopify_log(status="Success", response_data=shopify_order.to_dict())
+		make_shopify_log(shop_name, status="Success", response_data=shopify_order.to_dict())
 		return sales_invoice
 
 
