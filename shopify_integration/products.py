@@ -107,8 +107,13 @@ def validate_item(shop_name: str, shopify_order: "Order"):
 
 def get_item_code(shopify_item: "LineItem") -> Optional[str]:
 	item_code = frappe.db.get_value("Item",
-		{"shopify_variant_id": shopify_item.attributes.get("variant_id")},
+		{"shopify_sku": shopify_item.attributes.get("sku")},
 		"item_code")
+
+	if not item_code:
+		item_code = frappe.db.get_value("Item",
+			{"shopify_variant_id": shopify_item.attributes.get("variant_id")},
+			"item_code")
 
 	if not item_code:
 		item_code = frappe.db.get_value("Item",
@@ -259,11 +264,14 @@ def sync_item(
 		item_name = item_title
 
 	product_id = variant_id = None
+	shopify_sku = shopify_item.attributes.get("sku")
 	if isinstance(shopify_item, Product):
 		product_id = shopify_item.id
 	elif isinstance(shopify_item, Variant):
 		product_id = shopify_item.attributes.get("product_id")
 		variant_id = shopify_item.id
+
+	item_code = cstr(shopify_sku or variant_id or product_id or item_title)
 
 	item_data = {
 		"shopify_product_id": product_id,
@@ -273,7 +281,7 @@ def sync_item(
 		# an error is thrown for "Variant Of", which is a "Set Only Once" field
 		"variant_of": variant_of or None,
 		"is_stock_item": 1,
-		"item_code": cstr(shopify_item.id or item_title),
+		"item_code": item_code,
 		"item_name": item_name,
 		"description": item_description,
 		"shopify_description": item_description,
@@ -284,7 +292,7 @@ def sync_item(
 		"has_variants": item_has_variants,
 		"stock_uom": WEIGHT_UOM_MAP.get(shopify_item.attributes.get("uom"))
 		or frappe.db.get_single_value("Stock Settings", "stock_uom"),
-		"shopify_sku": shopify_item.attributes.get("sku"),
+		"shopify_sku": shopify_sku,
 		"weight_uom": WEIGHT_UOM_MAP.get(shopify_item.attributes.get("weight_unit")),
 		"weight_per_unit": shopify_item.attributes.get("weight"),
 		"integration_doctype": "Shopify Settings",
