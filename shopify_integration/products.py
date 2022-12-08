@@ -163,10 +163,10 @@ def make_item(
 			attributes = create_product_attributes(shopify_item)
 
 		if attributes:
-			sync_item(shopify_settings, shopify_item, attributes, update=True)
+			sync_item(shopify_settings, shopify_item, attributes)
 			sync_item_variants(shopify_settings, shopify_item, attributes)
 		else:
-			sync_item(shopify_settings, shopify_item, update=True)
+			sync_item(shopify_settings, shopify_item)
 	else:
 		# if template/variant creation is disabled, only create variant items
 		if any(
@@ -176,7 +176,7 @@ def make_item(
 				isinstance(shopify_item, Variant),
 			]
 		):
-			sync_item(shopify_settings, shopify_item, update=True)
+			sync_item(shopify_settings, shopify_item)
 
 
 def make_item_by_title(shopify_settings: "ShopifySettings", line_item_title: str):
@@ -390,9 +390,10 @@ def update_item(
 			attribute.attribute for attribute in existing_item_doc.attributes
 		]
 
-		for attribute in attributes:
-			if attribute.get("attribute") not in existing_attributes:
-				existing_item_doc.append("attributes", attribute)
+		if attributes:
+			for attribute in attributes:
+				if attribute.get("attribute") not in existing_attributes:
+					existing_item_doc.append("attributes", attribute)
 
 	# add default item supplier from Shopify
 	for default in existing_item_doc.item_defaults:
