@@ -36,6 +36,7 @@
   "cb_transactions",
   "warehouse",
   "update_price_in_erpnext_price_list",
+  "create_variant_items",
   "sb_naming_series",
   "sales_order_series",
   "sync_delivery_note",
@@ -315,10 +316,17 @@
    "label": "Connected App",
    "mandatory_depends_on": "eval:doc.app_type==\"Public\"",
    "options": "Connected App"
+  },
+  {
+   "default": "0",
+   "description": "If checked, item relationships will be maintained from Shopify, otherwise items will be created as individual products.",
+   "fieldname": "create_variant_items",
+   "fieldtype": "Check",
+   "label": "Create Template and Variant Items"
   }
  ],
  "links": [],
- "modified": "2022-02-22 07:16:24.959111",
+ "modified": "2022-12-05 07:16:24.959111",
  "modified_by": "Administrator",
  "module": "Shopify Integration",
  "name": "Shopify Settings",

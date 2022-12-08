@@ -68,7 +68,8 @@ class ShopifySettings(Document):
 
 	def get_shopify_session(self, temp: bool = False):
 		token = None
-		if self.app_type == "Custom":
+		# adding "Private" for backwards compatibility
+		if self.app_type in ("Custom", "Private"):
 			token = self.get_password("password")
 		elif self.app_type in ("Custom (OAuth)", "Public"):
 			token = self.get_shopify_access_token()

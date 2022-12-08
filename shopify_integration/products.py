@@ -45,14 +45,29 @@ def sync_items_from_shopify(shop_name: str):
 	shopify_settings: "ShopifySettings" = frappe.get_doc("Shopify Settings", shop_name)
 
 	try:
-		shopify_items = shopify_settings.get_products(status="active")
+		products = shopify_settings.get_products(status="active")
 	except Exception as e:
 		make_shopify_log(shop_name, status="Error", exception=e, rollback=True)
 		return
 
-	for shopify_item in shopify_items:
-		shopify_item: Product
-		make_item(shopify_settings, shopify_item)
+	product: Product
+	for product in products:
+		if product.attributes.get("variants"):
+			# if template/variant creation is disabled, don't create parent items
+			if shopify_settings.create_variant_items:
+				make_item(shopify_settings, product)
+		else:
+			make_item(shopify_settings, product)
+
+	try:
+		variants = shopify_settings.get_variants(status="active")
+	except Exception as e:
+		make_shopify_log(shop_name, status="Error", exception=e, rollback=True)
+		return
+
+	for variant in variants:
+		variant: Variant
+		make_item(shopify_settings, variant)
 
 
 def validate_item(shop_name: str, shopify_order: "Order"):
@@ -72,14 +87,18 @@ def validate_item(shop_name: str, shopify_order: "Order"):
 	shopify_settings: "ShopifySettings" = frappe.get_doc("Shopify Settings", shop_name)
 	for shopify_item in shopify_order.attributes.get("line_items", []):
 		shopify_item: "LineItem"
-		shopify_products = []
 
-		# create the parent product item if it does not exist
 		product_id = shopify_item.attributes.get("product_id")
 		if product_id and not frappe.db.exists("Item", {"shopify_product_id": product_id}):
 			shopify_products: List[Product] = shopify_settings.get_products(product_id)
 			for product in shopify_products:
-				make_item(shopify_settings, product)
+				if product.attributes.get("variants"):
+					if shopify_settings.create_variant_items:
+						# create the parent product item if it does not exist, and if template/variants
+						# is enabled in the Shopify settings instance
+						make_item(shopify_settings, product)
+				else:
+					make_item(shopify_settings, product)
 
 		# create the child variant item if it does not exist
 		variant_id = shopify_item.attributes.get("variant_id")
@@ -132,15 +151,26 @@ def make_item(
 	shopify_settings: "ShopifySettings",
 	shopify_item: Union[Product, Variant]
 ):
-	attributes = []
-	if isinstance(shopify_item, Product):
-		attributes = create_product_attributes(shopify_item)
+	if shopify_settings.create_variant_items:
+		attributes = []
+		if isinstance(shopify_item, Product):
+			attributes = create_product_attributes(shopify_item)
 
-	if attributes:
-		sync_item(shopify_settings, shopify_item, attributes)
-		sync_item_variants(shopify_settings, shopify_item, attributes)
+		if attributes:
+			sync_item(shopify_settings, shopify_item, attributes, update=True)
+			sync_item_variants(shopify_settings, shopify_item, attributes)
+		else:
+			sync_item(shopify_settings, shopify_item, update=True)
 	else:
-		sync_item(shopify_settings, shopify_item)
+		# if template/variant creation is disabled, only create variant items
+		if any(
+			[
+				isinstance(shopify_item, Product)
+				and shopify_item.attributes.get("variants"),
+				isinstance(shopify_item, Variant),
+			]
+		):
+			sync_item(shopify_settings, shopify_item, update=True)
 
 
 def make_item_by_title(shopify_settings: "ShopifySettings", line_item_title: str):
@@ -201,12 +231,7 @@ def create_product_attributes(shopify_item: Product) -> List[Dict]:
 
 
 def has_variants(shopify_item: Product):
-	options = shopify_item.attributes.get("options", [])
-	if not options:
-		return False
-	if "Default Title" not in options[0].attributes.get("values"):
-		return True
-	return False
+	return bool(shopify_item.attributes.get("variants"))
 
 
 def update_item_attribute_values(item_attr: "ItemAttribute", values: List[str]):
@@ -247,40 +272,41 @@ def sync_item(
 			Defaults to False.
 	"""
 
-	if not attributes:
-		attributes = []
-
-	item_title = shopify_item.attributes.get("title", "").strip()
-	item_description = shopify_item.attributes.get("body_html") or item_title
-	item_has_variants = has_variants(shopify_item)
-
-	if variant_of:
-		variant_name = frappe.db.get_value("Item", variant_of, "item_name")
-		item_name = f"{variant_name} - {item_title}"
-
-		for attribute in attributes:
-			attribute.update({"variant_of": variant_of})
-	else:
-		item_name = item_title
-
-	product_id = variant_id = None
+	product_id = variant_id = item_name = None
 	shopify_sku = shopify_item.attributes.get("sku")
+	item_title = shopify_item.attributes.get("title", "").strip()
+
 	if isinstance(shopify_item, Product):
 		product_id = shopify_item.id
+		item_name = item_title
 	elif isinstance(shopify_item, Variant):
 		product_id = shopify_item.attributes.get("product_id")
 		variant_id = shopify_item.id
 
-	item_code = cstr(shopify_sku or variant_id or product_id or item_title)
+		# attach the product name in front of the variant name
+		if variant_of and shopify_settings.create_variant_items:
+			product_name = frappe.db.get_value("Item", variant_of, "item_name")
+			item_name = f"{product_name} - {item_title}"
+		else:
+			# TODO: should we check if the product exists on Shopify?
+			products = shopify_settings.get_products(product_id, fields="title")
+			if products:
+				item_name = f"{products[0].title} - {item_title}"
+
+	item_code = cstr(shopify_sku or variant_id or product_id or item_name)
+	item_description = shopify_item.attributes.get("body_html")
+	item_has_variants = (
+		has_variants(shopify_item) if shopify_settings.create_variant_items else False
+	)
 
 	item_data = {
-		"shopify_product_id": product_id,
-		"shopify_variant_id": variant_id,
-		"disabled_on_shopify": not shopify_item.attributes.get("product_exists", True),
+		"shopify_product_id": cstr(product_id),
+		"shopify_variant_id": cstr(variant_id),
+		"disabled_on_shopify": False,
 		# existing non-variant items default to `None`, if any other value is found,
 		# an error is thrown for "Variant Of", which is a "Set Only Once" field
-		"variant_of": variant_of or None,
-		"is_stock_item": 1,
+		"variant_of": variant_of if shopify_settings.create_variant_items else None,
+		"is_stock_item": True,
 		"item_code": item_code,
 		"item_name": item_name,
 		"description": item_description,
@@ -305,28 +331,32 @@ def sync_item(
 		],
 	}
 
-	if not is_item_exists(item_data, attributes, variant_of=variant_of):
-		item_code = None
-		existing_item_name = get_existing_item_name(shopify_item)
-		if not existing_item_name:
-			item_code = create_item(shopify_settings, shopify_item, item_data, attributes)
-		elif update:
-			item_code = update_item(shopify_settings, shopify_item, existing_item_name, item_data, attributes)
+	# form a list of attributes
+	if variant_of and attributes and shopify_settings.create_variant_items:
+		for attribute in attributes:
+			attribute.update({"variant_of": variant_of})
 
-		if item_code and not item_has_variants and shopify_settings.update_price_in_erpnext_price_list:
-			add_to_price_list(shopify_settings, shopify_item, item_code)
+	new_item_code = None
+	if frappe.db.exists("Item", item_data.get("item_code")):
+		if update:
+			new_item_code = update_item(shopify_settings, shopify_item, item_data.get("item_code"), item_data, attributes)
+	else:
+		new_item_code = create_item(shopify_settings, shopify_item, item_data, attributes)
 
-		frappe.db.commit()
+	if new_item_code and not item_has_variants and shopify_settings.update_price_in_erpnext_price_list:
+		add_to_price_list(shopify_settings, shopify_item, new_item_code)
+
+	frappe.db.commit()
 
 
 def update_item(
 	shopify_settings: "ShopifySettings",
 	shopify_item: Union[Product, Variant],
-	item_name: str,
+	item_code: str,
 	item_data: Dict,
 	attributes: List[Dict]
 ):
-	existing_item_doc: "Item" = frappe.get_doc("Item", item_name)
+	existing_item_doc: "Item" = frappe.get_doc("Item", item_code)
 	existing_item_doc.update(item_data)
 
 	# update item attributes for existing items without transactions;
@@ -422,6 +452,7 @@ def sync_item_variants(
 				shopify_item=variant,
 				attributes=attributes,
 				variant_of=template_item.name,
+				update=True,
 			)
 
 
@@ -464,9 +495,6 @@ def add_to_price_list(
 	shopify_item: Union[Product, Variant],
 	item_code: str
 ):
-	item_price_name = frappe.db.get_value("Item Price",
-		{"item_code": item_code, "price_list": shopify_settings.price_list}, "name")
-
 	rate = 0
 	if isinstance(shopify_item, Product):
 		variants = shopify_item.attributes.get("variants", [])
@@ -475,17 +503,19 @@ def add_to_price_list(
 	elif isinstance(shopify_item, Variant):
 		rate = shopify_item.attributes.get("price") or 0
 
-	if not item_price_name:
-		frappe.get_doc({
-			"doctype": "Item Price",
-			"price_list": shopify_settings.price_list,
-			"item_code": item_code,
-			"price_list_rate": rate
-		}).insert()
-	else:
+	item_price_name = frappe.db.get_value("Item Price",
+		{"item_code": item_code, "price_list": shopify_settings.price_list}, "name")
+
+	if item_price_name:
 		item_rate = frappe.get_doc("Item Price", item_price_name)
 		item_rate.price_list_rate = rate
 		item_rate.save()
+	else:
+		item_rate = frappe.new_doc("Item Price")
+		item_rate.price_list = shopify_settings.price_list
+		item_rate.item_code = item_code
+		item_rate.price_list_rate = rate
+		item_rate.insert()
 
 
 def get_item_image(shopify_settings: "ShopifySettings", shopify_item: Union[Product, Variant]):
@@ -495,11 +525,13 @@ def get_item_image(shopify_settings: "ShopifySettings", shopify_item: Union[Prod
 	if isinstance(shopify_item, Product):
 		products = [shopify_item]
 	elif isinstance(shopify_item, Variant):
-		products: List[Product] = shopify_settings.get_products(
+		# TODO: should we check if the product exists on Shopify?
+		products = shopify_settings.get_products(
 			shopify_item.attributes.get("product_id"),
 			fields="image"
 		)
 
+	product: Product
 	for product in products:
 		if product.attributes.get("image"):
 			image_url = product.attributes.get("image").attributes.get("src")
@@ -554,79 +586,3 @@ def get_supplier_group():
 		}).insert()
 		return supplier_group.name
 	return supplier_group
-
-
-def get_existing_item_name(shopify_item: Union[Product, Variant]):
-	item_name = None
-	if isinstance(shopify_item, Product):
-		item_name = frappe.db.get_value("Item", {"shopify_product_id": shopify_item.id})
-	elif isinstance(shopify_item, Variant):
-		item_name = frappe.db.get_value("Item", {"shopify_variant_id": shopify_item.id})
-	return item_name
-
-
-def is_item_exists(
-	shopify_item: Dict,
-	attributes: List[Dict] = None,
-	variant_of: str = str()
-):
-	if variant_of:
-		name = variant_of
-	else:
-		name = frappe.db.get_value("Item", {"item_name": shopify_item.get("item_name")})
-		if not name:
-			return False
-
-	if not frappe.db.exists("Item", name):
-		return False
-
-	item: "Item" = frappe.get_doc("Item", name)
-
-	if not variant_of and not item.shopify_product_id:
-		item.shopify_product_id = shopify_item.get("shopify_product_id")
-		item.shopify_variant_id = shopify_item.get("shopify_variant_id")
-		item.save()
-		return True
-
-	if item.shopify_product_id and attributes and attributes[0].get("attribute_value"):
-		if not variant_of:
-			variant_of = frappe.db.get_value("Item",
-				{"shopify_product_id": item.shopify_product_id}, "variant_of")
-
-		# create conditions for all item attributes,
-		# as we are putting condition basis on OR it will fetch all items matching either of conditions
-		# thus comparing matching conditions with len(attributes)
-		# which will give exact matching variant item.
-		conditions = ["(iv.attribute='{0}' and iv.attribute_value = '{1}')"
-			.format(attr.get("attribute"), attr.get("attribute_value")) for attr in attributes]
-
-		conditions = "( {0} ) and iv.parent = it.name ) = {1}".format(" or ".join(conditions), len(attributes))
-
-		parent = frappe.db.sql_list("""
-			SELECT
-				name
-			FROM
-				tabItem it
-			WHERE
-				(
-					SELECT
-						COUNT(*)
-					FROM
-						`tabItem Variant Attribute` iv
-					WHERE
-						{conditions}
-				AND it.variant_of = %s
-		""".format(conditions=conditions), variant_of)
-
-		if parent:
-			variant: "Item" = frappe.get_doc("Item", parent[0])
-
-			variant.shopify_product_id = shopify_item.get("shopify_product_id")
-			variant.shopify_variant_id = shopify_item.get("shopify_variant_id")
-			variant.save()
-		return False
-
-	if item.shopify_product_id and item.shopify_product_id != shopify_item.get("shopify_product_id"):
-		return False
-
-	return True
