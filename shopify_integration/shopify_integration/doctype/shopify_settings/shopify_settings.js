@@ -119,7 +119,7 @@ $.extend(erpnext_integrations.shopify_settings, {
 			return {
 				filters: {
 					company: doc.company,
-					is_group: "No"
+					is_group: false,
 				}
 			}
 		});
@@ -159,7 +159,7 @@ $.extend(erpnext_integrations.shopify_settings, {
 				filters: [
 					["Account", "account_type", "in", ["Cash", "Bank"]],
 					["Account", "root_type", "=", "Asset"],
-					["Account", "is_group", "=", 0],
+					["Account", "is_group", "=", false],
 					["Account", "company", "=", doc.company]
 				]
 			}
@@ -169,13 +169,13 @@ $.extend(erpnext_integrations.shopify_settings, {
 			return {
 				filters: {
 					company: doc.company,
-					is_group: "No"
+					is_group: false,
 				}
 			}
 		});
 
 		frm.set_query("price_list", () => {
-			return { filters: { selling: 1 } }
+			return { filters: { enabled: true, selling: true } }
 		});
 	}
 })
