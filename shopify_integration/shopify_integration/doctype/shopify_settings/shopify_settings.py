@@ -52,6 +52,8 @@ class ShopifySettings(Document):
 		self.update_webhooks()
 
 	def get_shopify_access_token(self):
+		from shopify_integration.oauth import DEFAULT_TOKEN_USER
+
 		if self.app_type not in ("Custom (OAuth)", "Public"):
 			return
 
@@ -60,7 +62,7 @@ class ShopifySettings(Document):
 		)
 
 		token_cache: Optional["TokenCache"] = connected_app.get_token_cache(
-			frappe.session.user
+			DEFAULT_TOKEN_USER,
 		)
 
 		if token_cache:
