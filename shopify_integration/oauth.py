@@ -100,6 +100,11 @@ def callback(*args, **kwargs):
 	kwargs.pop("cmd")
 
 	session = ShopifySession(shopify_settings.shopify_url, shopify_settings.api_version)
+	session.setup(
+		api_key=connected_app.client_id,
+		secret=connected_app.get_password("client_secret"),
+	)
+
 	access_token = session.request_token(kwargs)
 	token_cache = token_cache.update_data(
 		{
