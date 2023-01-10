@@ -63,7 +63,7 @@ class ShopifySettings(unittest.TestCase):
 			)
 		) as shopify_customer:
 			customer = Customer()
-			customer_data = json.loads(shopify_customer.read())
+			customer_data = json.load(shopify_customer)
 			formatted_customer_data = prepare_customer_format(customer_data)
 			customer.attributes.update(formatted_customer_data)
 			create_customer(shopify_settings.name, customer)
@@ -73,7 +73,7 @@ class ShopifySettings(unittest.TestCase):
 			os.path.join(os.path.dirname(__file__), "test_data", "shopify_item.json")
 		) as shopify_item:
 			item = Product()
-			product_data = json.loads(shopify_item.read())
+			product_data = json.load(shopify_item)
 			formatted_product_data = prepare_product_format(product_data)
 			item.attributes.update(formatted_product_data)
 			make_item(shopify_settings, item)
@@ -83,7 +83,7 @@ class ShopifySettings(unittest.TestCase):
 			os.path.join(os.path.dirname(__file__), "test_data", "shopify_order.json")
 		) as shopify_order:
 			order = Order()
-			order_data = json.loads(shopify_order.read())
+			order_data = json.load(shopify_order)
 			formatted_order_data = prepare_order_format(order_data)
 			order.attributes.update(formatted_order_data)
 

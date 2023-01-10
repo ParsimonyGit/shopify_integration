@@ -160,9 +160,8 @@ def get_order_taxes(shopify_order: "Order", shopify_settings: "ShopifySettings")
 
 	# add additional taxes and fees
 	for tax in shopify_order.attributes.get("tax_lines"):
-		tax_description = "{0} - {1}%".format(
-			tax.attributes.get("title"),
-			tax.attributes.get("rate") * 100.0
+		tax_description = (
+			f'{tax.attributes.get("title")} - {tax.attributes.get("rate") * 100.0}%'
 		)
 
 		taxes.append({
