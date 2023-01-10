@@ -70,8 +70,8 @@ def resync(shop_name: str, method: str, name: str, request_data: str):
 	shopify_settings: "ShopifySettings" = frappe.get_doc("Shopify Settings", shop_name)
 
 	order_id = request_data.get("id")
-	orders: List["Order"] = shopify_settings.get_orders(order_id)
-	order = orders[0]
+	orders = shopify_settings.get_orders(order_id)
+	order: "Order" = orders[0]
 
 	frappe.enqueue(method=method, queue='short', timeout=300, is_async=True,
 		**{"shop_name": shop_name, "order": order, "log_id": name})

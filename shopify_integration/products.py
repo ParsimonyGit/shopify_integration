@@ -65,7 +65,7 @@ def sync_items_from_shopify(shop_name: str):
 		make_item(shopify_settings, variant)
 
 
-def validate_item(shop_name: str, shopify_order: "Order"):
+def validate_items(shop_name: str, shopify_order: "Order"):
 	"""
 	Ensure that a Shopify order's items exist before processing the order.
 

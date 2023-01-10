@@ -54,7 +54,7 @@ def create_shopify_order(shop_name: str, shopify_order: "Order", log_id: str = s
 	"""
 
 	from shopify_integration.customers import validate_customer
-	from shopify_integration.products import validate_item
+	from shopify_integration.products import validate_items
 
 	frappe.flags.log_id = log_id
 
@@ -66,7 +66,7 @@ def create_shopify_order(shop_name: str, shopify_order: "Order", log_id: str = s
 
 	try:
 		validate_customer(shop_name, shopify_order)
-		validate_item(shop_name, shopify_order)
+		validate_items(shop_name, shopify_order)
 		sales_order = create_sales_order(shop_name, shopify_order)
 	except Exception as e:
 		make_shopify_log(shop_name, status="Error", response_data=shopify_order.to_dict(), exception=e)
