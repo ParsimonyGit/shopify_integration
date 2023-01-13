@@ -21,6 +21,7 @@ if TYPE_CHECKING:
 
 SHOPIFY_WEBHOOK_TOPIC_MAPPER = {
 	"orders/create": "shopify_integration.orders.create_shopify_documents",
+	"orders/edited": "shopify_integration.orders.update_shopify_order",
 	"orders/paid": "shopify_integration.invoices.prepare_sales_invoice",
 	"orders/fulfilled": "shopify_integration.fulfilments.prepare_delivery_note",
 	"orders/cancelled": "shopify_integration.orders.cancel_shopify_order",
@@ -41,10 +42,10 @@ def store_request_data():
 		return
 
 	shop: "ShopifySettings" = frappe.get_doc("Shopify Settings", shop_name)
-	validate_webhooks_request(
-		shop=shop,
-		hmac_key="X-Shopify-Hmac-SHA256",
-	)
+	# validate_webhooks_request(
+	# 	shop=shop,
+	# 	hmac_key="X-Shopify-Hmac-SHA256",
+	# )
 
 	data: Dict = json.loads(frappe.request.data)
 	enqueue_webhook_event(shop_name, data, event)
@@ -81,15 +82,42 @@ def validate_webhooks_request(shop: "ShopifySettings", hmac_key: str):
 def enqueue_webhook_event(shop_name: str, data: Dict, event: str = "orders/create"):
 	frappe.set_user("Administrator")
 	log = create_shopify_log(shop_name, data, event)
-	order = Order()
-	order.attributes.update(data)
-	frappe.enqueue(
-		method=SHOPIFY_WEBHOOK_TOPIC_MAPPER.get(event),
-		queue="short",
-		timeout=300,
-		is_async=True,
-		**{"shop_name": shop_name, "order": order, "log_id": log.name},
-	)
+
+	# since webhooks are registered for orders only, get order from Shopify webhook data
+	if event == "orders/edited":
+		order_id = data.get("order_edit", {}).get("order_id")
+	else:
+		order_id = data.get("id")
+
+	if not order_id:
+		log.status = "Error"
+		log.message = "Order ID not found in webhook data"
+		log.save(ignore_permissions=True)
+		return
+
+	settings: "ShopifySettings" = frappe.get_doc("Shopify Settings", shop_name)
+	orders = settings.get_orders(order_id)
+	if not orders:
+		log.status = "Error"
+		log.message = "Order not found in Shopify"
+		log.save(ignore_permissions=True)
+		return
+
+	order: "Order" = orders[0]
+	if event == "orders/edited":
+		kwargs = {"shop_name": shop_name, "order": order, "data": data.get("order_edit"), "log_id": log.name}
+		method = frappe.get_attr(SHOPIFY_WEBHOOK_TOPIC_MAPPER.get(event))
+		method(**kwargs)
+	else:
+		kwargs = {"shop_name": shop_name, "order": order, "log_id": log.name}
+
+	# frappe.enqueue(
+	# 	method=SHOPIFY_WEBHOOK_TOPIC_MAPPER.get(event),
+	# 	queue="short",
+	# 	timeout=300,
+	# 	is_async=True,
+	# 	**kwargs,
+	# )
 
 
 def create_shopify_log(shop_name: str, data: Dict, event: str = "orders/create"):

@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, Dict, List
 
 import frappe
 from frappe.utils import flt, getdate, nowdate
@@ -73,6 +73,25 @@ def create_shopify_order(shop_name: str, shopify_order: "Order", log_id: str = s
 	else:
 		make_shopify_log(shop_name, status="Success", response_data=shopify_order.to_dict())
 		return sales_order
+
+
+def update_shopify_order(shop_name: str, order: "Order", data: Dict, log_id: str = str()):
+	"""
+	Webhook endpoint to sync changes from a Shopify order with a Sales Order document.
+
+	Args:
+		shop_name (str): The name of the Shopify configuration for the store.
+		shopify_order (Order): The Shopify order changed data.
+		data (dict): The webhook data.
+		log_id (str, optional): The ID of an existing Shopify Log. Defaults
+			to an empty string.
+	"""
+	line_items: Dict = data.get('line_items', {})
+	line_item_additions = line_items.get('additions', [])
+	line_item_removals = line_items.get('removals', [])
+
+	discounts: Dict = data.get('discounts', {})
+	shipping_lines: Dict = data.get('shipping_lines', {})
 
 
 def create_sales_order(shop_name: str, shopify_order: "Order"):
