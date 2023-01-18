@@ -165,7 +165,7 @@ def create_sales_return(
 	if not refund_dates:
 		return
 
-	refund_datetime = min([get_datetime(date) for date in refund_dates])
+	refund_datetime = min(get_datetime(date) for date in refund_dates)
 	if not refund_datetime:
 		return
 

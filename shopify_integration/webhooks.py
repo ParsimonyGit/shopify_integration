@@ -4,13 +4,13 @@ import hmac
 import json
 from typing import TYPE_CHECKING, Dict, List, Optional
 
-from shopify import Order
-
 import frappe
 from frappe import _
 from frappe.utils import get_url
 
 if TYPE_CHECKING:
+	from shopify import Order
+
 	from frappe.integrations.doctype.connected_app.connected_app import ConnectedApp
 	from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log import (
 		ShopifyLog,
