@@ -4,13 +4,13 @@ import hmac
 import json
 from typing import TYPE_CHECKING, Dict, List, Optional
 
-from shopify import Order
-
 import frappe
 from frappe import _
 from frappe.utils import get_url
 
 if TYPE_CHECKING:
+	from shopify import Order
+
 	from frappe.integrations.doctype.connected_app.connected_app import ConnectedApp
 	from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log import (
 		ShopifyLog,
@@ -81,15 +81,21 @@ def validate_webhooks_request(shop: "ShopifySettings", hmac_key: str):
 def enqueue_webhook_event(shop_name: str, data: Dict, event: str = "orders/create"):
 	frappe.set_user("Administrator")
 	log = create_shopify_log(shop_name, data, event)
-	order = Order()
-	order.attributes.update(data)
-	frappe.enqueue(
-		method=SHOPIFY_WEBHOOK_TOPIC_MAPPER.get(event),
-		queue="short",
-		timeout=300,
-		is_async=True,
-		**{"shop_name": shop_name, "order": order, "log_id": log.name},
-	)
+
+	# since webhooks are registered for orders only, get order from Shopify using ID
+	order_id = data.get("id")
+	if order_id:
+		settings: "ShopifySettings" = frappe.get_doc("Shopify Settings", shop_name)
+		orders = settings.get_orders(order_id)
+		if orders:
+			order: "Order" = orders[0]
+			frappe.enqueue(
+				method=SHOPIFY_WEBHOOK_TOPIC_MAPPER.get(event),
+				queue="short",
+				timeout=300,
+				is_async=True,
+				**{"shop_name": shop_name, "order": order, "log_id": log.name},
+			)
 
 
 def create_shopify_log(shop_name: str, data: Dict, event: str = "orders/create"):

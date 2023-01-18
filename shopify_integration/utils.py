@@ -64,11 +64,13 @@ def get_tax_account_head(shop_name: str, tax_type: str):
 
 	tax_field = tax_map.get(tax_type)
 	if not tax_field:
-		frappe.throw(_("Account not specified for '{0}'".format(frappe.unscrub(tax_type))))
+		tax_type_label = frappe.unscrub(tax_type)
+		frappe.throw(_(f"Account not specified for '{tax_type_label}'"))
 
 	tax_account = frappe.db.get_value("Shopify Settings", shop_name, tax_field)
 	if not tax_account:
-		frappe.throw(_("Account not specified for '{0}'".format(frappe.unscrub(tax_field))))
+		tax_account_label = frappe.unscrub(tax_field)
+		frappe.throw(_(f"Account not specified for '{tax_account_label}'"))
 
 	return tax_account
 
