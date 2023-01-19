@@ -5,6 +5,7 @@ from erpnext.accounts.doctype.sales_invoice.sales_invoice import make_sales_retu
 from erpnext.selling.doctype.sales_order.sales_order import make_sales_invoice
 from frappe.utils import cint, flt, get_datetime, getdate
 
+from shopify_integration.orders import get_shopify_order
 from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log import make_shopify_log
 from shopify_integration.utils import get_shopify_document, get_tax_account_head
 
@@ -15,13 +16,13 @@ if TYPE_CHECKING:
 	from shopify_integration.shopify_integration.doctype.shopify_settings.shopify_settings import ShopifySettings
 
 
-def prepare_sales_invoice(shop_name: str, order: "Order", log_id: str = str()):
+def prepare_sales_invoice(shop_name: str, order_id: str, log_id: str = str()):
 	"""
 	Webhook endpoint to process invoices for Shopify orders.
 
 	Args:
 		shop_name (str): The name of the Shopify configuration for the store.
-		order (Order): The Shopify order data.
+		order_id (Order): The Shopify order ID.
 		log_id (str, optional): The ID of an existing Shopify Log.
 			Defaults to an empty string.
 	"""
@@ -30,6 +31,10 @@ def prepare_sales_invoice(shop_name: str, order: "Order", log_id: str = str()):
 
 	frappe.set_user("Administrator")
 	frappe.flags.log_id = log_id
+
+	order = get_shopify_order(shop_name, order_id, log_id)
+	if not order:
+		return
 
 	try:
 		sales_order = get_shopify_document(shop_name=shop_name, doctype="Sales Order", order=order)

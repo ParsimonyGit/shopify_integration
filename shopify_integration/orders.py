@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 	from shopify_integration.shopify_integration.doctype.shopify_settings.shopify_settings import ShopifySettings
 
 
-def create_shopify_documents(shop_name: str, order: "Order", log_id: str = str()):
+def create_shopify_documents(shop_name: str, order_id: str, log_id: str = str()):
 	"""
 	Create the following from a Shopify order:
 
@@ -23,7 +23,7 @@ def create_shopify_documents(shop_name: str, order: "Order", log_id: str = str()
 	Args:
 
 		shop_name (str): The name of the Shopify configuration for the store.
-		order (Order): The Shopify order data.
+		order_id (str): The Shopify order ID.
 		log_id (str, optional): The ID of an existing Shopify Log. Defaults
 			to an empty string.
 	"""
@@ -33,10 +33,33 @@ def create_shopify_documents(shop_name: str, order: "Order", log_id: str = str()
 
 	frappe.set_user("Administrator")
 	frappe.flags.log_id = log_id
+
+	order = get_shopify_order(shop_name, order_id, log_id)
+	if not order:
+		return
+
 	sales_order = create_shopify_order(shop_name, order, log_id)
 	if sales_order:
 		create_shopify_invoice(shop_name, order, sales_order, log_id)
 		create_shopify_delivery(shop_name, order, sales_order, log_id)
+
+
+def get_shopify_order(shop_name: str, order_id: str, log_id: str = str()):
+	frappe.flags.log_id = log_id
+
+	settings: "ShopifySettings" = frappe.get_doc("Shopify Settings", shop_name)
+	orders = settings.get_orders(order_id)
+	if not orders:
+		make_shopify_log(
+			shop_name,
+			status="Error",
+			response_data=f"Order '{order_id}' not found in Shopify",
+		)
+		return
+
+	order: "Order"
+	order = orders[0]
+	return order
 
 
 def create_shopify_order(shop_name: str, shopify_order: "Order", log_id: str = str()):
@@ -176,19 +199,23 @@ def get_order_taxes(shopify_order: "Order", shopify_settings: "ShopifySettings")
 	return taxes
 
 
-def cancel_shopify_order(shop_name: str, order: "Order", log_id: str = str()):
+def cancel_shopify_order(shop_name: str, order_id: str, log_id: str = str()):
 	"""
 	Cancel all sales documents if a Shopify order is cancelled.
 
 	Args:
 		shop_name (str): The name of the Shopify configuration for the store.
-		order (Order): The Shopify order data.
+		order_id (Order): The Shopify order ID.
 		log_id (str, optional): The ID of an existing Shopify Log.
 			Defaults to an empty string.
 	"""
 
 	frappe.set_user("Administrator")
 	frappe.flags.log_id = log_id
+
+	order = get_shopify_order(shop_name, order_id, log_id)
+	if not order:
+		return
 
 	doctypes = ["Delivery Note", "Sales Invoice", "Sales Order"]
 	for doctype in doctypes:
