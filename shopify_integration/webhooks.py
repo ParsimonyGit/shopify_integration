@@ -9,8 +9,6 @@ from frappe import _
 from frappe.utils import get_url
 
 if TYPE_CHECKING:
-	from shopify import Order
-
 	from frappe.integrations.doctype.connected_app.connected_app import ConnectedApp
 	from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log import (
 		ShopifyLog,
@@ -75,7 +73,7 @@ def validate_webhooks_request(shop: "ShopifySettings", hmac_key: str):
 	computed_hmac = base64.b64encode(digest)
 
 	hmac_key = frappe.get_request_header(hmac_key)
-	if not hmac.compare_digest(computed_hmac, hmac_key.encode('utf-8')):
+	if not hmac.compare_digest(computed_hmac, hmac_key.encode("utf-8")):
 		frappe.throw(_("Unverified Shopify Webhook data"))
 
 
@@ -95,21 +93,17 @@ def enqueue_webhook_event(shop_name: str, data: Dict, event: str = "orders/creat
 		log.save(ignore_permissions=True)
 		return
 
-	settings: "ShopifySettings" = frappe.get_doc("Shopify Settings", shop_name)
-	orders = settings.get_orders(order_id)
-	if not orders:
-		log.status = "Error"
-		log.message = "Order not found in Shopify"
-		log.save(ignore_permissions=True)
-		return
-
-	order: "Order" = orders[0]
 	if event == "orders/edited":
-		kwargs = {"shop_name": shop_name, "order": order, "data": data.get("order_edit"), "log_id": log.name}
+		kwargs = {
+			"shop_name": shop_name,
+			"order_id": order_id,
+			"data": data.get("order_edit"),
+			"log_id": log.name,
+		}
 		method = frappe.get_attr(SHOPIFY_WEBHOOK_TOPIC_MAPPER.get(event))
 		method(**kwargs)
 	else:
-		kwargs = {"shop_name": shop_name, "order": order, "log_id": log.name}
+		kwargs = {"shop_name": shop_name, "order_id": order_id, "log_id": log.name}
 
 	# frappe.enqueue(
 	# 	method=SHOPIFY_WEBHOOK_TOPIC_MAPPER.get(event),

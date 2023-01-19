@@ -4,6 +4,7 @@ import frappe
 from erpnext.selling.doctype.sales_order.sales_order import make_delivery_note
 from frappe.utils import cint, getdate
 
+from shopify_integration.orders import get_shopify_order
 from shopify_integration.products import get_item_code
 from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log import make_shopify_log
 from shopify_integration.utils import get_shopify_document
@@ -16,18 +17,24 @@ if TYPE_CHECKING:
 	from shopify_integration.shopify_integration.doctype.shopify_settings.shopify_settings import ShopifySettings
 
 
-def prepare_delivery_note(shop_name: str, order: "Order", log_id: str = str()):
+def prepare_delivery_note(shop_name: str, order_id: str, log_id: str = str()):
 	"""
 	Webhook endpoint to process deliveries for Shopify orders.
 
 	Args:
 		shop_name (str): The name of the Shopify configuration for the store.
-		order (Order): The Shopify order data.
+		order_id (str): The Shopify order ID.
 		log_id (str, optional): The ID of an existing Shopify Log.
 			Defaults to an empty string.
 	"""
 
 	frappe.set_user("Administrator")
+	frappe.flags.log_id = log_id
+
+	order = get_shopify_order(shop_name, order_id, log_id)
+	if not order:
+		return
+
 	create_shopify_delivery(shop_name=shop_name, shopify_order=order, log_id=log_id, rollback=True)
 
 
