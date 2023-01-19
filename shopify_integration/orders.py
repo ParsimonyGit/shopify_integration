@@ -98,17 +98,22 @@ def create_shopify_order(shop_name: str, shopify_order: "Order", log_id: str = s
 		return sales_order
 
 
-def update_shopify_order(shop_name: str, order: "Order", data: Dict, log_id: str = str()):
+def update_shopify_order(shop_name: str, order_id: str, data: Dict, log_id: str = str()):
 	"""
 	Webhook endpoint to sync changes from a Shopify order with a Sales Order document.
 
 	Args:
 		shop_name (str): The name of the Shopify configuration for the store.
-		shopify_order (Order): The Shopify order changed data.
+		order_id (str): The Shopify order ID.
 		data (dict): The webhook data.
 		log_id (str, optional): The ID of an existing Shopify Log. Defaults
 			to an empty string.
 	"""
+
+	order = get_shopify_order(shop_name, order_id, log_id)
+	if not order:
+		return
+
 	line_items: Dict = data.get('line_items', {})
 	line_item_additions = line_items.get('additions', [])
 	line_item_removals = line_items.get('removals', [])
@@ -171,18 +176,23 @@ def get_order_items(
 			or shopify_settings.item_group
 		)
 
+		stock_uom = shopify_item.attributes.get("uom") or frappe.db.get_single_value(
+			"Stock Settings", "stock_uom"
+		)
+
 		items.append({
 			"item_code": item_code,
 			"item_name": shopify_item.attributes.get("name"),
 			"item_group": item_group,
 			"rate": shopify_item.attributes.get("price"),
+			"discount_amount": flt(shopify_item.attributes.get("total_discount")),
 			"delivery_date": nowdate(),
-			"qty": shopify_item.attributes.get("quantity"),
-			"stock_uom": shopify_item.attributes.get("uom")
-			or frappe.db.get_single_value("Stock Settings", "stock_uom"),
+			"qty": shopify_item.attributes.get("fulfillable_quantity"),
+			"stock_uom": stock_uom,
 			"conversion_factor": 1,
 			"warehouse": shopify_settings.warehouse,
 		})
+
 	return items
 
 
