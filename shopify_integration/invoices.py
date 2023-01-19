@@ -39,7 +39,7 @@ def prepare_sales_invoice(shop_name: str, order_id: str, log_id: str = str()):
 	try:
 		sales_order = get_shopify_document(shop_name=shop_name, doctype="Sales Order", order=order)
 		if not sales_order:
-			create_shopify_documents(shop_name, order, log_id)
+			create_shopify_documents(shop_name, order_id, log_id)
 			sales_order = get_shopify_document(shop_name=shop_name, doctype="Sales Order", order=order)
 
 		if sales_order:

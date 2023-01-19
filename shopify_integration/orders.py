@@ -1,6 +1,8 @@
+import json
 from typing import TYPE_CHECKING, Dict, List
 
 import frappe
+from erpnext.controllers.accounts_controller import update_child_qty_rate
 from frappe.utils import flt, getdate, nowdate
 
 from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log import make_shopify_log
@@ -39,9 +41,9 @@ def create_shopify_documents(shop_name: str, order_id: str, log_id: str = str())
 		return
 
 	sales_order = create_shopify_order(shop_name, order, log_id)
-	if sales_order:
-		create_shopify_invoice(shop_name, order, sales_order, log_id)
-		create_shopify_delivery(shop_name, order, sales_order, log_id)
+	# if sales_order:
+	# 	create_shopify_invoice(shop_name, order, sales_order, log_id)
+	# 	create_shopify_delivery(shop_name, order, sales_order, log_id)
 
 
 def get_shopify_order(shop_name: str, order_id: str, log_id: str = str()):
@@ -114,12 +116,74 @@ def update_shopify_order(shop_name: str, order_id: str, data: Dict, log_id: str 
 	if not order:
 		return
 
-	line_items: Dict = data.get('line_items', {})
-	line_item_additions = line_items.get('additions', [])
-	line_item_removals = line_items.get('removals', [])
+	existing_so = get_shopify_document(
+		shop_name=shop_name, doctype="Sales Order", order_id=order_id
+	)
 
-	discounts: Dict = data.get('discounts', {})
-	shipping_lines: Dict = data.get('shipping_lines', {})
+	if not existing_so:
+		make_shopify_log(shop_name, status="Error", response_data=order.to_dict())
+		return
+
+	line_items: Dict = data.get("line_items", {})
+	shopify_settings: "ShopifySettings" = frappe.get_doc("Shopify Settings", shop_name)
+
+	# process item or quantity additions
+	line_item_additions = line_items.get("additions", [])
+	for added in line_item_additions:
+		existing_order_item = [
+			so_item
+			for so_item in existing_so.items
+			if str(added.get("id")) == so_item.get("shopify_order_item_id")
+		]
+
+		if existing_order_item:
+			existing_order_item = existing_order_item[0]
+			existing_order_item.qty += added.get("delta")
+		else:
+			# if it's a new item, add it into the items table
+			shopify_order_items = order.attributes.get("line_items", [])
+			for shopify_order_item in shopify_order_items:
+				if added.get("id") == shopify_order_item.id:
+					order_item = get_order_item(shopify_order_item, shopify_settings)
+					existing_so.append("items", order_item)
+					break
+
+	# process item or quantity deletions
+	line_item_removals = line_items.get("removals", [])
+	for removed in line_item_removals:
+		existing_order_item = [
+			so_item
+			for so_item in existing_so.items
+			if str(removed.get("id")) == so_item.get("shopify_order_item_id")
+		]
+
+		if existing_order_item:
+			existing_order_item = existing_order_item[0]
+			existing_order_item.qty -= removed.get("delta")
+		else:
+			# the item should always exist; if it doesn't, log an error
+			make_shopify_log(
+				shop_name,
+				status="Error",
+				message=f"Shopify item {removed.get('id')} not found",
+				response_data=order.to_dict(),
+			)
+
+	discounts: Dict = data.get("discounts", {})
+	shipping_lines: Dict = data.get("shipping_lines", {})
+
+	changed_items = [
+		item.as_dict(convert_dates_to_str=True) for item in existing_so.items
+	]
+
+	# flag system to not create new rows and just update the existing rows;
+	# if new rows are created, integration details are lost
+	for item in changed_items:
+		item.docname = item.name
+
+	update_child_qty_rate(
+		"Sales Order", json.dumps(changed_items), existing_so.name, "items"
+	)
 
 
 def create_sales_order(shop_name: str, shopify_order: "Order"):
@@ -166,34 +230,38 @@ def create_sales_order(shop_name: str, shopify_order: "Order"):
 def get_order_items(
 	shopify_order_items: List["LineItem"], shopify_settings: "ShopifySettings"
 ):
-	from shopify_integration.products import get_item_code
-
 	items = []
 	for shopify_item in shopify_order_items:
-		item_code = get_item_code(shopify_item)
-		item_group = (
-			frappe.db.get_value("Item", item_code, "item_group")
-			or shopify_settings.item_group
-		)
-
-		stock_uom = shopify_item.attributes.get("uom") or frappe.db.get_single_value(
-			"Stock Settings", "stock_uom"
-		)
-
-		items.append({
-			"item_code": item_code,
-			"item_name": shopify_item.attributes.get("name"),
-			"item_group": item_group,
-			"rate": shopify_item.attributes.get("price"),
-			"discount_amount": flt(shopify_item.attributes.get("total_discount")),
-			"delivery_date": nowdate(),
-			"qty": shopify_item.attributes.get("fulfillable_quantity"),
-			"stock_uom": stock_uom,
-			"conversion_factor": 1,
-			"warehouse": shopify_settings.warehouse,
-		})
-
+		items.append(get_order_item(shopify_item, shopify_settings))
 	return items
+
+
+def get_order_item(shopify_item: "LineItem", shopify_settings: "ShopifySettings"):
+	from shopify_integration.products import get_item_code
+
+	item_code = get_item_code(shopify_item)
+	item_group = (
+		frappe.db.get_value("Item", item_code, "item_group")
+		or shopify_settings.item_group
+	)
+
+	stock_uom = shopify_item.attributes.get("uom") or frappe.db.get_single_value(
+		"Stock Settings", "stock_uom"
+	)
+
+	return {
+		"shopify_order_item_id": shopify_item.id,
+		"item_code": item_code,
+		"item_name": shopify_item.attributes.get("name"),
+		"item_group": item_group,
+		"rate": shopify_item.attributes.get("price"),
+		"discount_amount": flt(shopify_item.attributes.get("total_discount")),
+		"delivery_date": nowdate(),
+		"qty": shopify_item.attributes.get("fulfillable_quantity"),
+		"stock_uom": stock_uom,
+		"conversion_factor": 1,
+		"warehouse": shopify_settings.warehouse,
+	}
 
 
 def get_order_taxes(shopify_order: "Order", shopify_settings: "ShopifySettings"):
@@ -272,3 +340,10 @@ def cancel_shopify_order(shop_name: str, order_id: str, log_id: str = str()):
 		for transaction in payout_transactions:
 			frappe.db.set_value("Shopify Payout Transaction", transaction.name,
 				"source_order_financial_status", frappe.unscrub(order.attributes.get("financial_status")))
+
+
+def test_run():
+	shop = frappe.get_doc("Shopify Settings", "Parsimony Test")
+	orders = shop.get_orders()
+	from shopify_integration.orders import create_shopify_documents
+	create_shopify_documents(shop.name, orders[0].id)

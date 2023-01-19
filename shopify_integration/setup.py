@@ -80,6 +80,17 @@ def setup_custom_fields(args=None):
 				fieldtype="Data", insert_after="cb_shopify",
 				read_only=1, print_hide=1, translatable=0)
 		],
+		"Sales Order Item": [
+			dict(
+				fieldname="shopify_order_item_id",
+				label="Shopify Order Item ID",
+				fieldtype="Data",
+				insert_after="warehouse",
+				read_only=True,
+				print_hide=True,
+				translatable=False,
+			),
+		],
 		"Sales Invoice": [
 			dict(fieldname="sb_shopify", label="Shopify", fieldtype="Section Break",
 				insert_after="cost_center", collapsible=0),
@@ -94,6 +105,17 @@ def setup_custom_fields(args=None):
 			dict(fieldname="shopify_order_id", label="Shopify Order ID",
 				fieldtype="Data", insert_after="cb_shopify",
 				read_only=1, print_hide=1, translatable=0)
+		],
+		"Sales Invoice Item": [
+			dict(
+				fieldname="shopify_order_item_id",
+				label="Shopify Order Item ID",
+				fieldtype="Data",
+				insert_after="sales_order",
+				read_only=True,
+				print_hide=True,
+				translatable=False,
+			),
 		],
 		"Delivery Note": [
 			dict(fieldname="sb_shopify", label="Shopify", fieldtype="Section Break",
@@ -112,7 +134,18 @@ def setup_custom_fields(args=None):
 			dict(fieldname="shopify_fulfillment_id", label="Shopify Fulfillment ID",
 				fieldtype="Data", insert_after="shopify_order_id",
 				read_only=1, print_hide=1, translatable=0)
-		]
+		],
+		"Delivery Note Item": [
+			dict(
+				fieldname="shopify_order_item_id",
+				label="Shopify Order Item ID",
+				fieldtype="Data",
+				insert_after="against_sales_order",
+				read_only=True,
+				print_hide=True,
+				translatable=False,
+			),
+		],
 	}
 
 	# ref: https://github.com/ParsimonyGit/shipstation_integration/

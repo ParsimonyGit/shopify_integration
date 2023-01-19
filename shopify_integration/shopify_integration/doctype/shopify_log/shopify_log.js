@@ -5,9 +5,9 @@
 
 frappe.ui.form.on('Shopify Log', {
 	refresh: (frm) => {
-		if (frm.doc.request_data && frm.doc.status === 'Error') {
-			frm.add_custom_button('Resync', () => {
-				frappe.call({
+		if (frm.doc.request_data && frm.doc.status !== 'Success') {
+			frm.add_custom_button('Resync', async () => {
+				const response = await frappe.call({
 					method: "shopify_integration.shopify_integration.doctype.shopify_log.shopify_log.resync",
 					args: {
 						shop_name: frm.doc.shop,
@@ -15,12 +15,12 @@ frappe.ui.form.on('Shopify Log', {
 						name: frm.doc.name,
 						request_data: frm.doc.request_data
 					},
-					callback: (r) => {
-						if (!r.exc) {
-							frappe.msgprint(__("Order rescheduled for sync"));
-						}
-					}
+					freeze: true,
 				})
+
+				if (!response.exc) {
+					frappe.msgprint(__("Order rescheduled for sync"));
+				}
 			}).addClass('btn-primary');
 		}
 	}

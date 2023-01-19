@@ -3,15 +3,10 @@
 # For license information, please see license.txt
 
 import json
-from typing import TYPE_CHECKING, Dict, List, Union
+from typing import Dict, List, Union
 
 import frappe
 from frappe.model.document import Document
-
-if TYPE_CHECKING:
-	from shopify import Order
-
-	from shopify_integration.shopify_integration.doctype.shopify_settings.shopify_settings import ShopifySettings
 
 
 class ShopifyLog(Document):
@@ -21,6 +16,7 @@ class ShopifyLog(Document):
 def make_shopify_log(
 	shop_name: str,
 	status: str = "Queued",
+	message: str = None,
 	response_data: Union[str, Dict] = None,
 	exception: Union[Exception, List] = None,
 	rollback: bool = False,
@@ -42,8 +38,11 @@ def make_shopify_log(
 	if not isinstance(response_data, str):
 		response_data = json.dumps(response_data, sort_keys=True, indent=4)
 
+	if not message:
+		message = "Something went wrong while syncing"
+
 	log.shop = shop_name
-	log.message = get_message(exception)
+	log.message = get_message(exception) or message
 	log.response_data = response_data
 	log.traceback = frappe.get_traceback()
 	log.status = status
@@ -52,26 +51,30 @@ def make_shopify_log(
 
 
 def get_message(exception: Exception):
-	message = "Something went wrong while syncing"
-
 	if hasattr(exception, "message"):
-		message = exception.message
+		return exception.message
 	elif hasattr(exception, "__str__"):
-		message = exception.__str__()
-
-	return message
+		return exception.__str__()
 
 
 @frappe.whitelist()
 def resync(shop_name: str, method: str, name: str, request_data: str):
 	frappe.db.set_value("Shopify Log", name, "status", "Queued", update_modified=False)
-
 	request_data = json.loads(request_data)
-	shopify_settings: "ShopifySettings" = frappe.get_doc("Shopify Settings", shop_name)
 
-	order_id = request_data.get("id")
-	orders = shopify_settings.get_orders(order_id)
-	order: "Order" = orders[0]
+	if request_data.get("order_edit"):
+		order_id = request_data.get("order_edit", {}).get("order_id")
+		frappe.get_attr(method)(
+			shop_name, order_id, request_data.get("order_edit"), name
+		)
+	else:
+		order_id = request_data.get("id")
+		frappe.get_attr(method)(shop_name, order_id, name)
 
-	frappe.enqueue(method=method, queue='short', timeout=300, is_async=True,
-		**{"shop_name": shop_name, "order": order, "log_id": name})
+	# frappe.enqueue(
+	# 	method=method,
+	# 	queue="short",
+	# 	timeout=300,
+	# 	is_async=True,
+	# 	**{"shop_name": shop_name, "order_id": order_id, "log_id": name}
+	# )
