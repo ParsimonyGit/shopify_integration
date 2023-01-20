@@ -112,6 +112,23 @@ def update_shopify_order(shop_name: str, order_id: str, data: Dict, log_id: str 
 			to an empty string.
 	"""
 
+	def update_items(existing_so: "SalesOrder"):
+		changed_items = [
+			item.as_dict(convert_dates_to_str=True) for item in existing_so.items
+		]
+
+		# if no new items are being added, flag the system to not create new rows
+		# and just update the existing rows; if new rows are created, integration
+		# details are lost
+		for item in changed_items:
+			item.docname = item.name
+
+		update_child_qty_rate(
+			"Sales Order", json.dumps(changed_items), existing_so.name, "items"
+		)
+
+	from shopify_integration.products import validate_items
+
 	order = get_shopify_order(shop_name, order_id, log_id)
 	if not order:
 		return
@@ -124,6 +141,9 @@ def update_shopify_order(shop_name: str, order_id: str, data: Dict, log_id: str 
 		make_shopify_log(shop_name, status="Error", response_data=order.to_dict())
 		return
 
+	# if new items are added to the order, create them first
+	validate_items(shop_name, order)
+	shopify_order_items = order.attributes.get("line_items", [])
 	line_items: Dict = data.get("line_items", {})
 	shopify_settings: "ShopifySettings" = frappe.get_doc("Shopify Settings", shop_name)
 
@@ -141,12 +161,26 @@ def update_shopify_order(shop_name: str, order_id: str, data: Dict, log_id: str 
 			existing_order_item.qty += added.get("delta")
 		else:
 			# if it's a new item, add it into the items table
-			shopify_order_items = order.attributes.get("line_items", [])
 			for shopify_order_item in shopify_order_items:
 				if added.get("id") == shopify_order_item.id:
 					order_item = get_order_item(shopify_order_item, shopify_settings)
 					existing_so.append("items", order_item)
+
+					# HACK: if new rows are added using `update_child_qty_rate`,
+					# non-standard fields are lost; so, we need to reload the
+					# document and update the custom details in the new row
+					update_items(existing_so)
+					existing_so.load_from_db()
+					added_item = existing_so.items[-1]
+					added_item.db_set("shopify_order_item_id", str(added.get("id")))
+					added_item.db_set(
+						"discount_amount",
+						flt(shopify_order_item.attributes.get("total_discount")),
+					)
 					break
+
+	total_discounts = sum(item.discount_amount for item in existing_so.items)
+	existing_so.db_set("discount_amount", total_discounts)
 
 	# process item or quantity deletions
 	line_item_removals = line_items.get("removals", [])
@@ -165,25 +199,15 @@ def update_shopify_order(shop_name: str, order_id: str, data: Dict, log_id: str 
 			make_shopify_log(
 				shop_name,
 				status="Error",
-				message=f"Shopify item {removed.get('id')} not found",
+				message=f"Shopify order item {removed.get('id')} not found",
 				response_data=order.to_dict(),
 			)
 
-	discounts: Dict = data.get("discounts", {})
+	# TODO: process shipping changes
 	shipping_lines: Dict = data.get("shipping_lines", {})
+	# TODO: update tax lines as well
 
-	changed_items = [
-		item.as_dict(convert_dates_to_str=True) for item in existing_so.items
-	]
-
-	# flag system to not create new rows and just update the existing rows;
-	# if new rows are created, integration details are lost
-	for item in changed_items:
-		item.docname = item.name
-
-	update_child_qty_rate(
-		"Sales Order", json.dumps(changed_items), existing_so.name, "items"
-	)
+	update_items(existing_so)
 
 
 def create_sales_order(shop_name: str, shopify_order: "Order"):
@@ -250,14 +274,14 @@ def get_order_item(shopify_item: "LineItem", shopify_settings: "ShopifySettings"
 	)
 
 	return {
-		"shopify_order_item_id": shopify_item.id,
+		"shopify_order_item_id": str(shopify_item.id),
 		"item_code": item_code,
 		"item_name": shopify_item.attributes.get("name"),
 		"item_group": item_group,
-		"rate": shopify_item.attributes.get("price"),
+		"rate": flt(shopify_item.attributes.get("price")),
 		"discount_amount": flt(shopify_item.attributes.get("total_discount")),
 		"delivery_date": nowdate(),
-		"qty": shopify_item.attributes.get("fulfillable_quantity"),
+		"qty": flt(shopify_item.attributes.get("fulfillable_quantity")),
 		"stock_uom": stock_uom,
 		"conversion_factor": 1,
 		"warehouse": shopify_settings.warehouse,

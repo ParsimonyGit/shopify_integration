@@ -3,7 +3,7 @@
 # For license information, please see license.txt
 
 import json
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union
 
 import frappe
 from frappe.model.document import Document
@@ -16,9 +16,9 @@ class ShopifyLog(Document):
 def make_shopify_log(
 	shop_name: str,
 	status: str = "Queued",
-	message: str = None,
-	response_data: Union[str, Dict] = None,
-	exception: Union[Exception, List] = None,
+	message: Optional[str] = None,
+	response_data: Optional[Union[str, Dict]] = None,
+	exception: Optional[Union[Exception, List]] = None,
 	rollback: bool = False,
 ):
 	# if name not provided by log calling method then fetch existing queued state log
@@ -38,14 +38,20 @@ def make_shopify_log(
 	if not isinstance(response_data, str):
 		response_data = json.dumps(response_data, sort_keys=True, indent=4)
 
-	if not message:
-		message = "Something went wrong while syncing"
+	error_message = (
+		message or get_message(exception) or "Something went wrong while syncing"
+	)
 
-	log.shop = shop_name
-	log.message = get_message(exception) or message
-	log.response_data = response_data
-	log.traceback = frappe.get_traceback()
-	log.status = status
+	log.update(
+		{
+			"shop": shop_name,
+			"message": error_message,
+			"response_data": response_data,
+			"traceback": frappe.get_traceback(),
+			"status": status,
+		}
+	)
+
 	log.save(ignore_permissions=True)
 	frappe.db.commit()
 
