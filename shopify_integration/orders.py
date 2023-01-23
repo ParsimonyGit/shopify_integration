@@ -64,6 +64,24 @@ def get_shopify_order(shop_name: str, order_id: str, log_id: str = str()):
 	return order
 
 
+def get_shopify_order(shop_name: str, order_id: str, log_id: str = str()):
+	frappe.flags.log_id = log_id
+
+	settings: "ShopifySettings" = frappe.get_doc("Shopify Settings", shop_name)
+	orders = settings.get_orders(order_id)
+	if not orders:
+		make_shopify_log(
+			shop_name,
+			status="Error",
+			response_data=f"Order '{order_id}' not found in Shopify",
+		)
+		return
+
+	order: "Order"
+	order = orders[0]
+	return order
+
+
 def create_shopify_order(shop_name: str, shopify_order: "Order", log_id: str = str()):
 	"""
 	Create a Sales Order document for a Shopify order.
