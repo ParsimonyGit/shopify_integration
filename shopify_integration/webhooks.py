@@ -40,10 +40,10 @@ def store_request_data():
 		return
 
 	shop: "ShopifySettings" = frappe.get_doc("Shopify Settings", shop_name)
-	# validate_webhooks_request(
-	# 	shop=shop,
-	# 	hmac_key="X-Shopify-Hmac-SHA256",
-	# )
+	validate_webhooks_request(
+		shop=shop,
+		hmac_key="X-Shopify-Hmac-SHA256",
+	)
 
 	data: Dict = json.loads(frappe.request.data)
 	enqueue_webhook_event(shop_name, data, event)
@@ -93,17 +93,13 @@ def enqueue_webhook_event(shop_name: str, data: Dict, event: str = "orders/creat
 		log.save(ignore_permissions=True)
 		return
 
-	kwargs = {"shop_name": shop_name, "order_id": order_id, "log_id": log.name}
-	method = frappe.get_attr(SHOPIFY_WEBHOOK_TOPIC_MAPPER.get(event))
-	method(**kwargs)
-
-	# frappe.enqueue(
-	# 	method=SHOPIFY_WEBHOOK_TOPIC_MAPPER.get(event),
-	# 	queue="short",
-	# 	timeout=300,
-	# 	is_async=True,
-	# 	**kwargs,
-	# )
+	frappe.enqueue(
+		method=SHOPIFY_WEBHOOK_TOPIC_MAPPER.get(event),
+		queue="short",
+		timeout=300,
+		is_async=True,
+		**{"shop_name": shop_name, "order_id": order_id, "log_id": log.name},
+	)
 
 
 def create_shopify_log(shop_name: str, data: Dict, event: str = "orders/create"):

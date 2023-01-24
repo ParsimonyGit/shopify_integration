@@ -10,7 +10,23 @@ from frappe.model.document import Document
 
 
 class ShopifyLog(Document):
-	pass
+	@frappe.whitelist()
+	def resync(self):
+		self.db_set("status", "Queued", update_modified=False)
+
+		request_data = json.loads(self.request_data)
+		if request_data.get("order_edit"):
+			order_id = request_data.get("order_edit", {}).get("order_id")
+		else:
+			order_id = request_data.get("id")
+
+		frappe.enqueue(
+			method=self.method,
+			queue="short",
+			timeout=300,
+			is_async=True,
+			**{"shop_name": self.shop, "order_id": order_id, "log_id": self.name}
+		)
 
 
 def make_shopify_log(
@@ -61,24 +77,3 @@ def get_message(exception: Exception):
 		return exception.message
 	elif hasattr(exception, "__str__"):
 		return exception.__str__()
-
-
-@frappe.whitelist()
-def resync(shop_name: str, method: str, name: str, request_data: str):
-	frappe.db.set_value("Shopify Log", name, "status", "Queued", update_modified=False)
-
-	request_data = json.loads(request_data)
-	if request_data.get("order_edit"):
-		order_id = request_data.get("order_edit", {}).get("order_id")
-	else:
-		order_id = request_data.get("id")
-
-	frappe.get_attr(method)(shop_name, order_id, name)
-
-	# frappe.enqueue(
-	# 	method=method,
-	# 	queue="short",
-	# 	timeout=300,
-	# 	is_async=True,
-	# 	**{"shop_name": shop_name, "order_id": order_id, "log_id": name}
-	# )

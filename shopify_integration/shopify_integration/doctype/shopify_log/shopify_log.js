@@ -5,16 +5,11 @@
 
 frappe.ui.form.on('Shopify Log', {
 	refresh: (frm) => {
-		if (frm.doc.request_data) {
+		if (frm.doc.request_data && frm.doc.status === 'Error') {
 			frm.add_custom_button('Resync', async () => {
-				const response = await frappe.call({
-					method: "shopify_integration.shopify_integration.doctype.shopify_log.shopify_log.resync",
-					args: {
-						shop_name: frm.doc.shop,
-						method: frm.doc.method,
-						name: frm.doc.name,
-						request_data: frm.doc.request_data
-					},
+				const response = await frm.call({
+					doc: frm.doc,
+					method: "resync",
 					freeze: true,
 				})
 

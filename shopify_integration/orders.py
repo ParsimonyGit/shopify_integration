@@ -38,7 +38,7 @@ def create_shopify_documents(
 	from shopify_integration.fulfilments import create_shopify_delivery
 	from shopify_integration.invoices import create_shopify_invoice
 
-	# frappe.set_user("Administrator")
+	frappe.set_user("Administrator")
 	frappe.flags.log_id = log_id
 
 	order = get_shopify_order(shop_name, order_id, log_id)
@@ -46,9 +46,9 @@ def create_shopify_documents(
 		return
 
 	sales_order = create_shopify_order(shop_name, order, log_id, amended_from)
-	# if sales_order:
-	# 	create_shopify_invoice(shop_name, order, sales_order, log_id)
-	# 	create_shopify_delivery(shop_name, order, sales_order, log_id)
+	if sales_order:
+		create_shopify_invoice(shop_name, order, sales_order, log_id)
+		create_shopify_delivery(shop_name, order, sales_order, log_id)
 
 
 def get_shopify_order(shop_name: str, order_id: str, log_id: str = str()):
@@ -271,7 +271,7 @@ def cancel_shopify_order(shop_name: str, order_id: str, log_id: str = str()):
 			Defaults to an empty string.
 	"""
 
-	# frappe.set_user("Administrator")
+	frappe.set_user("Administrator")
 	frappe.flags.log_id = log_id
 
 	order = get_shopify_order(shop_name, order_id, log_id)
@@ -304,10 +304,3 @@ def cancel_shopify_order(shop_name: str, order_id: str, log_id: str = str()):
 		for transaction in payout_transactions:
 			frappe.db.set_value("Shopify Payout Transaction", transaction.name,
 				"source_order_financial_status", frappe.unscrub(order.attributes.get("financial_status")))
-
-
-def test_run():
-	shop = frappe.get_doc("Shopify Settings", "Parsimony Test")
-	orders = shop.get_orders()
-	from shopify_integration.orders import create_shopify_documents
-	create_shopify_documents(shop.name, orders[0].id)
