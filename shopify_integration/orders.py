@@ -70,7 +70,10 @@ def get_shopify_order(shop_name: str, order_id: str, log_id: str = str()):
 
 
 def create_shopify_order(
-	shop_name: str, shopify_order: "Order", log_id: str = str(), amended_from: str = str()
+	shop_name: str,
+	shopify_order: "Order",
+	log_id: str = str(),
+	amended_from: str = str(),
 ):
 	"""
 	Create a Sales Order document for a Shopify order.
@@ -91,20 +94,32 @@ def create_shopify_order(
 
 	frappe.flags.log_id = log_id
 
-	existing_so = get_shopify_document(shop_name=shop_name, doctype="Sales Order", order=shopify_order)
-	if existing_so:
+	if existing_so := get_shopify_document(
+		shop_name=shop_name, doctype="Sales Order", order=shopify_order
+	):
 		existing_so: "SalesOrder"
-		make_shopify_log(shop_name, status="Skipped", response_data=shopify_order.to_dict())
+		make_shopify_log(
+			shop_name, status="Skipped", response_data=shopify_order.to_dict()
+		)
 		return existing_so
 
 	try:
 		validate_customer(shop_name, shopify_order)
 		validate_items(shop_name, shopify_order)
-		sales_order = create_sales_order(shop_name, shopify_order, amended_from=amended_from)
+		sales_order = create_sales_order(
+			shop_name, shopify_order, amended_from=amended_from
+		)
 	except Exception as e:
-		make_shopify_log(shop_name, status="Error", response_data=shopify_order.to_dict(), exception=e)
+		make_shopify_log(
+			shop_name,
+			status="Error",
+			response_data=shopify_order.to_dict(),
+			exception=e,
+		)
 	else:
-		make_shopify_log(shop_name, status="Success", response_data=shopify_order.to_dict())
+		make_shopify_log(
+			shop_name, status="Success", response_data=shopify_order.to_dict()
+		)
 		return sales_order
 
 
@@ -126,10 +141,14 @@ def update_shopify_order(shop_name: str, order_id: str, log_id: str = str()):
 		shop_name=shop_name, doctype="Sales Order", order_id=order_id
 	):
 		cancel_shopify_order(shop_name, order_id, log_id)
-		create_shopify_documents(shop_name, order_id, log_id, amended_from=existing_so.name)
+		create_shopify_documents(
+			shop_name, order_id, log_id, amended_from=existing_so.name
+		)
 
 
-def create_sales_order(shop_name: str, shopify_order: "Order", *, amended_from: str = str()):
+def create_sales_order(
+	shop_name: str, shopify_order: "Order", *, amended_from: str = str()
+):
 	"""
 	Helper function to create a Sales Order document for a Shopify order.
 
@@ -144,26 +163,34 @@ def create_sales_order(shop_name: str, shopify_order: "Order", *, amended_from: 
 
 	shopify_settings: "ShopifySettings" = frappe.get_doc("Shopify Settings", shop_name)
 	shopify_customer = shopify_order.attributes.get("customer", frappe._dict())
-	customer = frappe.db.get_value("Customer", {"shopify_customer_id": shopify_customer.id}, "name")
+	customer = frappe.db.get_value(
+		"Customer", {"shopify_customer_id": shopify_customer.id}, "name"
+	)
 
-	sales_order: "SalesOrder" = frappe.get_doc({
-		"doctype": "Sales Order",
-		"naming_series": shopify_settings.sales_order_series or "SO-Shopify-",
-		"shopify_settings": shopify_settings.name,
-		"shopify_order_id": shopify_order.id,
-		"shopify_order_number": shopify_order.attributes.get("order_number"),
-		"customer": customer or shopify_settings.default_customer,
-		"transaction_date": getdate(shopify_order.attributes.get("created_at")),
-		"delivery_date": getdate(shopify_order.attributes.get("created_at")),
-		"company": shopify_settings.company,
-		"selling_price_list": shopify_settings.price_list,
-		"ignore_pricing_rule": 1,
-		"items": get_order_items(shopify_order.attributes.get("line_items", []), shopify_settings),
-		"taxes": get_order_taxes(shopify_order, shopify_settings),
-		"apply_discount_on": "Grand Total",
-		"discount_amount": flt(shopify_order.attributes.get("current_total_discounts")),
-		"amended_from": amended_from,
-	})
+	sales_order: "SalesOrder" = frappe.get_doc(
+		{
+			"doctype": "Sales Order",
+			"naming_series": shopify_settings.sales_order_series or "SO-Shopify-",
+			"shopify_settings": shopify_settings.name,
+			"shopify_order_id": shopify_order.id,
+			"shopify_order_number": shopify_order.attributes.get("order_number"),
+			"customer": customer or shopify_settings.default_customer,
+			"transaction_date": getdate(shopify_order.attributes.get("created_at")),
+			"delivery_date": getdate(shopify_order.attributes.get("created_at")),
+			"company": shopify_settings.company,
+			"selling_price_list": shopify_settings.price_list,
+			"ignore_pricing_rule": 1,
+			"items": get_order_items(
+				shopify_order.attributes.get("line_items", []), shopify_settings
+			),
+			"taxes": get_order_taxes(shopify_order, shopify_settings),
+			"apply_discount_on": "Grand Total",
+			"discount_amount": flt(
+				shopify_order.attributes.get("current_total_discounts")
+			),
+			"amended_from": amended_from,
+		}
+	)
 
 	sales_order.flags.ignore_mandatory = True
 	sales_order.save(ignore_permissions=True)
@@ -217,30 +244,38 @@ def get_order_taxes(shopify_order: "Order", shopify_settings: "ShopifySettings")
 	# add shipping charges
 	for shipping in shopify_order.attributes.get("shipping_lines"):
 		if shipping.attributes.get("price"):
-			taxes.append({
-				"charge_type": "Actual",
-				"account_head": get_tax_account_head(shopify_settings.name, "shipping"),
-				"description": shipping.attributes.get("title"),
-				"tax_amount": shipping.attributes.get("price"),
-				"cost_center": shopify_settings.cost_center
-			})
+			taxes.append(
+				{
+					"charge_type": "Actual",
+					"account_head": get_tax_account_head(
+						shopify_settings.name, "shipping"
+					),
+					"description": shipping.attributes.get("title"),
+					"tax_amount": shipping.attributes.get("price"),
+					"cost_center": shopify_settings.cost_center,
+				}
+			)
 
 	# add additional taxes and fees
 	for tax in shopify_order.attributes.get("tax_lines"):
 		title = tax.attributes.get("title")
 		if rate := tax.attributes.get("rate"):
-			tax_description = f'{title} - {rate * 100.0}%'
+			tax_description = f"{title} - {rate * 100.0}%"
 		else:
 			tax_description = title
 
-		taxes.append({
-			"charge_type": "Actual",
-			"account_head": get_tax_account_head(shopify_settings.name, "tax"),
-			"description": tax_description,
-			"tax_amount": flt(tax.attributes.get("price")),
-			"cost_center": shopify_settings.cost_center,
-			"included_in_print_rate": shopify_order.attributes.get("taxes_included")
-		})
+		taxes.append(
+			{
+				"charge_type": "Actual",
+				"account_head": get_tax_account_head(shopify_settings.name, "tax"),
+				"description": tax_description,
+				"tax_amount": flt(tax.attributes.get("price")),
+				"cost_center": shopify_settings.cost_center,
+				"included_in_print_rate": shopify_order.attributes.get(
+					"taxes_included"
+				),
+			}
+		)
 
 	# TODO: Shopify's API doesn't have a clear way to identify changes in taxes
 	# from orders being edited. Instead of calculating the difference, we'll
@@ -249,13 +284,15 @@ def get_order_taxes(shopify_order: "Order", shopify_settings: "ShopifySettings")
 	order_taxes = flt(shopify_order.attributes.get("current_total_tax"))
 	difference = order_taxes - total_taxes
 	if difference:
-		taxes.append({
-			"charge_type": "Actual",
-			"account_head": get_tax_account_head(shopify_settings.name, "tax"),
-			"description": "Tax Difference from Order Edits",
-			"tax_amount": difference,
-			"cost_center": shopify_settings.cost_center
-		})
+		taxes.append(
+			{
+				"charge_type": "Actual",
+				"account_head": get_tax_account_head(shopify_settings.name, "tax"),
+				"description": "Tax Difference from Order Edits",
+				"tax_amount": difference,
+				"cost_center": shopify_settings.cost_center,
+			}
+		)
 
 	return taxes
 
@@ -291,16 +328,30 @@ def cancel_shopify_order(shop_name: str, order_id: str, log_id: str = str()):
 				doc.flags.ignore_links = True
 				doc.cancel()
 			except Exception as e:
-				make_shopify_log(shop_name, status="Error", response_data=order.to_dict(),
-					exception=e, rollback=True)
+				make_shopify_log(
+					shop_name,
+					status="Error",
+					response_data=order.to_dict(),
+					exception=e,
+					rollback=True,
+				)
 
 		# update the financial status in all linked Shopify Payouts
-		payout_transactions = frappe.get_all("Shopify Payout Transaction",
+		payout_transactions = frappe.get_all(
+			"Shopify Payout Transaction",
 			filters={
 				frappe.scrub(doctype): doc.name,
-				"source_order_financial_status": ["!=", order.attributes.get("financial_status")]
-			})
+				"source_order_financial_status": [
+					"!=",
+					order.attributes.get("financial_status"),
+				],
+			},
+		)
 
 		for transaction in payout_transactions:
-			frappe.db.set_value("Shopify Payout Transaction", transaction.name,
-				"source_order_financial_status", frappe.unscrub(order.attributes.get("financial_status")))
+			frappe.db.set_value(
+				"Shopify Payout Transaction",
+				transaction.name,
+				"source_order_financial_status",
+				frappe.unscrub(order.attributes.get("financial_status")),
+			)
