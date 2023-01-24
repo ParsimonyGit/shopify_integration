@@ -5,7 +5,7 @@
 
 frappe.ui.form.on('Shopify Log', {
 	refresh: (frm) => {
-		if (frm.doc.request_data && frm.doc.status !== 'Success') {
+		if (frm.doc.request_data) {
 			frm.add_custom_button('Resync', async () => {
 				const response = await frappe.call({
 					method: "shopify_integration.shopify_integration.doctype.shopify_log.shopify_log.resync",

@@ -93,17 +93,9 @@ def enqueue_webhook_event(shop_name: str, data: Dict, event: str = "orders/creat
 		log.save(ignore_permissions=True)
 		return
 
-	if event == "orders/edited":
-		kwargs = {
-			"shop_name": shop_name,
-			"order_id": order_id,
-			"data": data.get("order_edit"),
-			"log_id": log.name,
-		}
-		method = frappe.get_attr(SHOPIFY_WEBHOOK_TOPIC_MAPPER.get(event))
-		method(**kwargs)
-	else:
-		kwargs = {"shop_name": shop_name, "order_id": order_id, "log_id": log.name}
+	kwargs = {"shop_name": shop_name, "order_id": order_id, "log_id": log.name}
+	method = frappe.get_attr(SHOPIFY_WEBHOOK_TOPIC_MAPPER.get(event))
+	method(**kwargs)
 
 	# frappe.enqueue(
 	# 	method=SHOPIFY_WEBHOOK_TOPIC_MAPPER.get(event),

@@ -1,20 +1,24 @@
-import json
-from typing import TYPE_CHECKING, Dict, List
+from typing import TYPE_CHECKING, List
 
 import frappe
-from erpnext.controllers.accounts_controller import update_child_qty_rate
 from frappe.utils import flt, getdate, nowdate
 
-from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log import make_shopify_log
+from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log import (
+	make_shopify_log,
+)
 from shopify_integration.utils import get_shopify_document, get_tax_account_head
 
 if TYPE_CHECKING:
 	from erpnext.selling.doctype.sales_order.sales_order import SalesOrder
 	from shopify import LineItem, Order
-	from shopify_integration.shopify_integration.doctype.shopify_settings.shopify_settings import ShopifySettings
+	from shopify_integration.shopify_integration.doctype.shopify_settings.shopify_settings import (
+		ShopifySettings,
+	)
 
 
-def create_shopify_documents(shop_name: str, order_id: str, log_id: str = str()):
+def create_shopify_documents(
+	shop_name: str, order_id: str, log_id: str = str(), amended_from: str = str()
+):
 	"""
 	Create the following from a Shopify order:
 
@@ -28,19 +32,20 @@ def create_shopify_documents(shop_name: str, order_id: str, log_id: str = str())
 		order_id (str): The Shopify order ID.
 		log_id (str, optional): The ID of an existing Shopify Log. Defaults
 			to an empty string.
+		amended_from (str, optional): The name of the original cancelled Sales Order.
 	"""
 
 	from shopify_integration.fulfilments import create_shopify_delivery
 	from shopify_integration.invoices import create_shopify_invoice
 
-	frappe.set_user("Administrator")
+	# frappe.set_user("Administrator")
 	frappe.flags.log_id = log_id
 
 	order = get_shopify_order(shop_name, order_id, log_id)
 	if not order:
 		return
 
-	sales_order = create_shopify_order(shop_name, order, log_id)
+	sales_order = create_shopify_order(shop_name, order, log_id, amended_from)
 	# if sales_order:
 	# 	create_shopify_invoice(shop_name, order, sales_order, log_id)
 	# 	create_shopify_delivery(shop_name, order, sales_order, log_id)
@@ -64,25 +69,9 @@ def get_shopify_order(shop_name: str, order_id: str, log_id: str = str()):
 	return order
 
 
-def get_shopify_order(shop_name: str, order_id: str, log_id: str = str()):
-	frappe.flags.log_id = log_id
-
-	settings: "ShopifySettings" = frappe.get_doc("Shopify Settings", shop_name)
-	orders = settings.get_orders(order_id)
-	if not orders:
-		make_shopify_log(
-			shop_name,
-			status="Error",
-			response_data=f"Order '{order_id}' not found in Shopify",
-		)
-		return
-
-	order: "Order"
-	order = orders[0]
-	return order
-
-
-def create_shopify_order(shop_name: str, shopify_order: "Order", log_id: str = str()):
+def create_shopify_order(
+	shop_name: str, shopify_order: "Order", log_id: str = str(), amended_from: str = str()
+):
 	"""
 	Create a Sales Order document for a Shopify order.
 
@@ -91,6 +80,7 @@ def create_shopify_order(shop_name: str, shopify_order: "Order", log_id: str = s
 		shopify_order (Order): The Shopify order data.
 		log_id (str, optional): The ID of an existing Shopify Log. Defaults
 			to an empty string.
+		amended_from (str, optional): The name of the original cancelled Sales Order.
 
 	Returns:
 		SalesOrder: The created Sales Order document, if any, otherwise None.
@@ -110,7 +100,7 @@ def create_shopify_order(shop_name: str, shopify_order: "Order", log_id: str = s
 	try:
 		validate_customer(shop_name, shopify_order)
 		validate_items(shop_name, shopify_order)
-		sales_order = create_sales_order(shop_name, shopify_order)
+		sales_order = create_sales_order(shop_name, shopify_order, amended_from=amended_from)
 	except Exception as e:
 		make_shopify_log(shop_name, status="Error", response_data=shopify_order.to_dict(), exception=e)
 	else:
@@ -118,123 +108,35 @@ def create_shopify_order(shop_name: str, shopify_order: "Order", log_id: str = s
 		return sales_order
 
 
-def update_shopify_order(shop_name: str, order_id: str, data: Dict, log_id: str = str()):
+def update_shopify_order(shop_name: str, order_id: str, log_id: str = str()):
 	"""
-	Webhook endpoint to sync changes from a Shopify order with a Sales Order document.
+	Webhook endpoint to process changes in a Shopify order.
+
+	Instead of updating the existing documents, cancel them and create a new series of
+	sales documents for the Shopify order.
 
 	Args:
 		shop_name (str): The name of the Shopify configuration for the store.
 		order_id (str): The Shopify order ID.
-		data (dict): The webhook data.
 		log_id (str, optional): The ID of an existing Shopify Log. Defaults
 			to an empty string.
 	"""
 
-	def update_items(existing_so: "SalesOrder"):
-		changed_items = [
-			item.as_dict(convert_dates_to_str=True) for item in existing_so.items
-		]
-
-		# if no new items are being added, flag the system to not create new rows
-		# and just update the existing rows; if new rows are created, integration
-		# details are lost
-		for item in changed_items:
-			item.docname = item.name
-
-		update_child_qty_rate(
-			"Sales Order", json.dumps(changed_items), existing_so.name, "items"
-		)
-
-	from shopify_integration.products import validate_items
-
-	order = get_shopify_order(shop_name, order_id, log_id)
-	if not order:
-		return
-
-	existing_so = get_shopify_document(
+	if existing_so := get_shopify_document(
 		shop_name=shop_name, doctype="Sales Order", order_id=order_id
-	)
-
-	if not existing_so:
-		make_shopify_log(shop_name, status="Error", response_data=order.to_dict())
-		return
-
-	# if new items are added to the order, create them first
-	validate_items(shop_name, order)
-	shopify_order_items = order.attributes.get("line_items", [])
-	line_items: Dict = data.get("line_items", {})
-	shopify_settings: "ShopifySettings" = frappe.get_doc("Shopify Settings", shop_name)
-
-	# process item or quantity additions
-	line_item_additions = line_items.get("additions", [])
-	for added in line_item_additions:
-		existing_order_item = [
-			so_item
-			for so_item in existing_so.items
-			if str(added.get("id")) == so_item.get("shopify_order_item_id")
-		]
-
-		if existing_order_item:
-			existing_order_item = existing_order_item[0]
-			existing_order_item.qty += added.get("delta")
-		else:
-			# if it's a new item, add it into the items table
-			for shopify_order_item in shopify_order_items:
-				if added.get("id") == shopify_order_item.id:
-					order_item = get_order_item(shopify_order_item, shopify_settings)
-					existing_so.append("items", order_item)
-
-					# HACK: if new rows are added using `update_child_qty_rate`,
-					# non-standard fields are lost; so, we need to reload the
-					# document and update the custom details in the new row
-					update_items(existing_so)
-					existing_so.load_from_db()
-					added_item = existing_so.items[-1]
-					added_item.db_set("shopify_order_item_id", str(added.get("id")))
-					added_item.db_set(
-						"discount_amount",
-						flt(shopify_order_item.attributes.get("total_discount")),
-					)
-					break
-
-	total_discounts = sum(item.discount_amount for item in existing_so.items)
-	existing_so.db_set("discount_amount", total_discounts)
-
-	# process item or quantity deletions
-	line_item_removals = line_items.get("removals", [])
-	for removed in line_item_removals:
-		existing_order_item = [
-			so_item
-			for so_item in existing_so.items
-			if str(removed.get("id")) == so_item.get("shopify_order_item_id")
-		]
-
-		if existing_order_item:
-			existing_order_item = existing_order_item[0]
-			existing_order_item.qty -= removed.get("delta")
-		else:
-			# the item should always exist; if it doesn't, log an error
-			make_shopify_log(
-				shop_name,
-				status="Error",
-				message=f"Shopify order item {removed.get('id')} not found",
-				response_data=order.to_dict(),
-			)
-
-	# TODO: process shipping changes
-	shipping_lines: Dict = data.get("shipping_lines", {})
-	# TODO: update tax lines as well
-
-	update_items(existing_so)
+	):
+		cancel_shopify_order(shop_name, order_id, log_id)
+		create_shopify_documents(shop_name, order_id, log_id, amended_from=existing_so.name)
 
 
-def create_sales_order(shop_name: str, shopify_order: "Order"):
+def create_sales_order(shop_name: str, shopify_order: "Order", *, amended_from: str = str()):
 	"""
 	Helper function to create a Sales Order document for a Shopify order.
 
 	Args:
 		shop_name (str): The name of the Shopify configuration for the store.
 		shopify_order (Order): The Shopify order data.
+		amended_from (str, optional): The name of the original cancelled Sales Order.
 
 	Returns:
 		SalesOrder: The created Sales Order document, if any, otherwise None.
@@ -259,7 +161,8 @@ def create_sales_order(shop_name: str, shopify_order: "Order"):
 		"items": get_order_items(shopify_order.attributes.get("line_items", []), shopify_settings),
 		"taxes": get_order_taxes(shopify_order, shopify_settings),
 		"apply_discount_on": "Grand Total",
-		"discount_amount": flt(shopify_order.attributes.get("total_discounts")),
+		"discount_amount": flt(shopify_order.attributes.get("current_total_discounts")),
+		"amended_from": amended_from,
 	})
 
 	sales_order.flags.ignore_mandatory = True
@@ -297,7 +200,9 @@ def get_order_item(shopify_item: "LineItem", shopify_settings: "ShopifySettings"
 		"item_name": shopify_item.attributes.get("name"),
 		"item_group": item_group,
 		"rate": flt(shopify_item.attributes.get("price")),
-		"discount_amount": flt(shopify_item.attributes.get("total_discount")),
+		# TODO: if items with discounts are edited, Shopify's API doesn't have an easy
+		# way to get the discount amount
+		# "discount_amount": flt(shopify_item.attributes.get("total_discount")),
 		"delivery_date": nowdate(),
 		"qty": flt(shopify_item.attributes.get("fulfillable_quantity")),
 		"stock_uom": stock_uom,
@@ -322,17 +227,34 @@ def get_order_taxes(shopify_order: "Order", shopify_settings: "ShopifySettings")
 
 	# add additional taxes and fees
 	for tax in shopify_order.attributes.get("tax_lines"):
-		tax_description = (
-			f'{tax.attributes.get("title")} - {tax.attributes.get("rate") * 100.0}%'
-		)
+		title = tax.attributes.get("title")
+		if rate := tax.attributes.get("rate"):
+			tax_description = f'{title} - {rate * 100.0}%'
+		else:
+			tax_description = title
 
 		taxes.append({
 			"charge_type": "Actual",
 			"account_head": get_tax_account_head(shopify_settings.name, "tax"),
 			"description": tax_description,
-			"tax_amount": tax.attributes.get("price"),
+			"tax_amount": flt(tax.attributes.get("price")),
 			"cost_center": shopify_settings.cost_center,
 			"included_in_print_rate": shopify_order.attributes.get("taxes_included")
+		})
+
+	# TODO: Shopify's API doesn't have a clear way to identify changes in taxes
+	# from orders being edited. Instead of calculating the difference, we'll
+	# just add a tax line for the difference
+	total_taxes = sum(tax.get("tax_amount") for tax in taxes)
+	order_taxes = flt(shopify_order.attributes.get("current_total_tax"))
+	difference = order_taxes - total_taxes
+	if difference:
+		taxes.append({
+			"charge_type": "Actual",
+			"account_head": get_tax_account_head(shopify_settings.name, "tax"),
+			"description": "Tax Difference from Order Edits",
+			"tax_amount": difference,
+			"cost_center": shopify_settings.cost_center
 		})
 
 	return taxes
@@ -349,7 +271,7 @@ def cancel_shopify_order(shop_name: str, order_id: str, log_id: str = str()):
 			Defaults to an empty string.
 	"""
 
-	frappe.set_user("Administrator")
+	# frappe.set_user("Administrator")
 	frappe.flags.log_id = log_id
 
 	order = get_shopify_order(shop_name, order_id, log_id)

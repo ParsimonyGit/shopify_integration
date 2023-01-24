@@ -66,16 +66,14 @@ def get_message(exception: Exception):
 @frappe.whitelist()
 def resync(shop_name: str, method: str, name: str, request_data: str):
 	frappe.db.set_value("Shopify Log", name, "status", "Queued", update_modified=False)
-	request_data = json.loads(request_data)
 
+	request_data = json.loads(request_data)
 	if request_data.get("order_edit"):
 		order_id = request_data.get("order_edit", {}).get("order_id")
-		frappe.get_attr(method)(
-			shop_name, order_id, request_data.get("order_edit"), name
-		)
 	else:
 		order_id = request_data.get("id")
-		frappe.get_attr(method)(shop_name, order_id, name)
+
+	frappe.get_attr(method)(shop_name, order_id, name)
 
 	# frappe.enqueue(
 	# 	method=method,
