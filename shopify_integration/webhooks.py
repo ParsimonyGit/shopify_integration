@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 
 SHOPIFY_WEBHOOK_TOPIC_MAPPER = {
 	"orders/create": "shopify_integration.orders.create_shopify_documents",
+	"orders/edited": "shopify_integration.orders.update_shopify_order",
 	"orders/paid": "shopify_integration.invoices.prepare_sales_invoice",
 	"orders/fulfilled": "shopify_integration.fulfilments.prepare_delivery_note",
 	"orders/cancelled": "shopify_integration.orders.cancel_shopify_order",
@@ -79,15 +80,26 @@ def validate_webhooks_request(shop: "ShopifySettings", hmac_key: str):
 def enqueue_webhook_event(shop_name: str, data: Dict, event: str = "orders/create"):
 	frappe.set_user("Administrator")
 	log = create_shopify_log(shop_name, data, event)
-	order_id = data.get("id")
-	if order_id:
-		frappe.enqueue(
-			method=SHOPIFY_WEBHOOK_TOPIC_MAPPER.get(event),
-			queue="short",
-			timeout=300,
-			is_async=True,
-			**{"shop_name": shop_name, "order_id": order_id, "log_id": log.name},
-		)
+
+	# since webhooks are registered for orders only, get order from Shopify webhook data
+	if event == "orders/edited":
+		order_id = data.get("order_edit", {}).get("order_id")
+	else:
+		order_id = data.get("id")
+
+	if not order_id:
+		log.status = "Error"
+		log.message = "Order ID not found in webhook data"
+		log.save(ignore_permissions=True)
+		return
+
+	frappe.enqueue(
+		method=SHOPIFY_WEBHOOK_TOPIC_MAPPER.get(event),
+		queue="short",
+		timeout=300,
+		is_async=True,
+		**{"shop_name": shop_name, "order_id": order_id, "log_id": log.name},
+	)
 
 
 def create_shopify_log(shop_name: str, data: Dict, event: str = "orders/create"):
