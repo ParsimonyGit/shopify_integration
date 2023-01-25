@@ -47,7 +47,7 @@ def sync_items_from_shopify(shop_name: str):
 
 	product: Product
 	for product in products:
-		if product.attributes.get("variants"):
+		if has_variants(product):
 			# if template/variant creation is disabled, don't create parent items
 			if shopify_settings.create_variant_items:
 				make_item(shopify_settings, product)
@@ -89,7 +89,7 @@ def validate_items(shop_name: str, shopify_order: "Order"):
 		):
 			shopify_products: List[Product] = shopify_settings.get_products(product_id)
 			for product in shopify_products:
-				if product.attributes.get("variants"):
+				if has_variants(product):
 					if shopify_settings.create_variant_items:
 						# create the parent product item if it does not exist, and if template/variants
 						# is enabled in the Shopify settings instance
@@ -127,8 +127,13 @@ def validate_items(shop_name: str, shopify_order: "Order"):
 
 def get_item_code(shopify_item: "LineItem") -> Optional[str]:
 	item_code = frappe.db.get_value(
-		"Item", {"shopify_sku": shopify_item.attributes.get("sku")}, "item_code"
+		"Item", shopify_item.attributes.get("sku"), "item_code"
 	)
+
+	if not item_code:
+		item_code = frappe.db.get_value(
+			"Item", {"shopify_sku": shopify_item.attributes.get("sku")}, "item_code"
+		)
 
 	if not item_code:
 		item_code = frappe.db.get_value(
@@ -172,7 +177,7 @@ def make_item(
 		if any(
 			[
 				isinstance(shopify_item, Product)
-				and shopify_item.attributes.get("variants"),
+				and has_variants(shopify_item),
 				isinstance(shopify_item, Variant),
 			]
 		):
@@ -242,8 +247,17 @@ def create_product_attributes(shopify_item: Product) -> List[Dict]:
 	return item_attributes
 
 
-def has_variants(shopify_item: Product):
-	return bool(shopify_item.attributes.get("variants"))
+def has_variants(product: Product):
+	# Shopify creates a product variant for ALL products, whether they actually
+	# have variants or not; the only way to tell if a product has variants is
+	# to check against the attributes
+	options = product.attributes.get("options")
+	if options:
+		option_values = [option.attributes.get("values") for option in options]
+		# flatten list of option values
+		option_values = [value for sublist in option_values for value in sublist]
+		return "Default Title" not in option_values
+	return False
 
 
 def update_item_attribute_values(item_attr: "ItemAttribute", values: List[str]):
