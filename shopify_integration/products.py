@@ -89,7 +89,13 @@ def validate_items(shop_name: str, shopify_order: "Order"):
 		):
 			shopify_products: List[Product] = shopify_settings.get_products(product_id)
 			for product in shopify_products:
-				make_item(shopify_settings, product)
+				if product.attributes.get("variants"):
+					if shopify_settings.create_variant_items:
+						# create the parent product item if it does not exist, and if template/variants
+						# is enabled in the Shopify settings instance
+						make_item(shopify_settings, product)
+				else:
+					make_item(shopify_settings, product)
 
 		# create the child variant item if it does not exist
 		variant_id = shopify_item.attributes.get("variant_id")
@@ -162,8 +168,15 @@ def make_item(
 		else:
 			sync_item(shopify_settings, shopify_item)
 	else:
-		# if template/variant creation is disabled, create items without any relationships
-		sync_item(shopify_settings, shopify_item)
+		# if template/variant creation is disabled, only create variant items
+		if any(
+			[
+				isinstance(shopify_item, Product)
+				and shopify_item.attributes.get("variants"),
+				isinstance(shopify_item, Variant),
+			]
+		):
+			sync_item(shopify_settings, shopify_item)
 
 
 def make_item_by_title(shopify_settings: "ShopifySettings", line_item_title: str):
