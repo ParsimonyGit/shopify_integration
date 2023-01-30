@@ -176,12 +176,24 @@ class ShopifySettings(Document):
 			SHOPIFY_WEBHOOK_TOPIC_MAPPER,
 		)
 
-		for topic in SHOPIFY_WEBHOOK_TOPIC_MAPPER:
-			with self.get_shopify_session(temp=True):
-				webhook = Webhook.create(
-					{"topic": topic, "address": get_webhook_url(), "format": "json"}
-				)
+		webhooks = []
 
+		try:
+			webhooks = self.get_webhooks()
+		except Exception as e:
+			make_shopify_log(
+				shop_name=self.name, status="Error", exception=e, rollback=True
+			)
+
+		if not webhooks:
+			for topic in SHOPIFY_WEBHOOK_TOPIC_MAPPER:
+				with self.get_shopify_session(temp=True):
+					webhooks.append(Webhook.create(
+						{"topic": topic, "address": get_webhook_url(), "format": "json"}
+					))
+
+		webhook: Webhook
+		for webhook in webhooks:
 			if webhook.is_valid():
 				self.append(
 					"webhooks", {"webhook_id": webhook.id, "method": webhook.topic}
