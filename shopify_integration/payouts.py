@@ -69,8 +69,7 @@ def create_shopify_payouts(shop_name: str, start_date: str = str()):
 			**{"shop_name": shop_name, "payout_id": payout.id},
 		)
 
-	shopify_settings.last_sync_datetime = now()
-	shopify_settings.save()
+	frappe.db.set_value("Shopify Settings", shop_name, "last_sync_datetime", now())
 
 
 def create_shopify_payout(shop_name: str, payout_id: str):
