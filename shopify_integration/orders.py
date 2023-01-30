@@ -212,6 +212,7 @@ def get_order_item(shopify_item: "LineItem", shopify_settings: "ShopifySettings"
 	from shopify_integration.products import get_item_code
 
 	item_code = get_item_code(shopify_item)
+	item_name = shopify_item.attributes.get("name", str())[:140]
 	item_group = (
 		frappe.db.get_value("Item", item_code, "item_group")
 		or shopify_settings.item_group
@@ -224,7 +225,7 @@ def get_order_item(shopify_item: "LineItem", shopify_settings: "ShopifySettings"
 	return {
 		"shopify_order_item_id": str(shopify_item.id),
 		"item_code": item_code,
-		"item_name": shopify_item.attributes.get("name"),
+		"item_name": item_name,
 		"item_group": item_group,
 		"rate": flt(shopify_item.attributes.get("price")),
 		# TODO: if items with discounts are edited, Shopify's API doesn't have an easy
@@ -251,7 +252,7 @@ def get_order_taxes(shopify_order: "Order", shopify_settings: "ShopifySettings")
 						shopify_settings.name, "shipping"
 					),
 					"description": shipping.attributes.get("title"),
-					"tax_amount": shipping.attributes.get("price"),
+					"tax_amount": flt(shipping.attributes.get("price")),
 					"cost_center": shopify_settings.cost_center,
 				}
 			)
