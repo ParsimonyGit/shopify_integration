@@ -110,13 +110,17 @@ def create_sales_invoice(shop_name: str, shopify_order: "Order", sales_order: "S
 	if not cint(shopify_settings.sync_sales_invoice):
 		return
 
+	shopify_order_name = shopify_order.attributes.get("name")
+	shopify_order_name = shopify_order_name.split("#")[-1]
+
 	existing_invoice = get_shopify_document(shop_name=shop_name, doctype="Sales Invoice", order=shopify_order)
 	if existing_invoice:
 		existing_invoice: "SalesInvoice"
 		frappe.db.set_value("Sales Invoice", existing_invoice.name, {
 			"shopify_settings": shopify_settings.name,
 			"shopify_order_id": shopify_order.id,
-			"shopify_order_number": shopify_order.attributes.get("order_number")
+			"shopify_order_number": shopify_order.attributes.get("order_number"),
+			"shopify_order_name": shopify_order_name,
 		})
 		return existing_invoice
 
@@ -126,6 +130,7 @@ def create_sales_invoice(shop_name: str, shopify_order: "Order", sales_order: "S
 			"shopify_settings": shopify_settings.name,
 			"shopify_order_id": shopify_order.id,
 			"shopify_order_number": shopify_order.attributes.get("order_number"),
+			"shopify_order_name": shopify_order_name,
 			"set_posting_time": True,
 			"posting_date": getdate(shopify_order.attributes.get("created_at")),
 			"naming_series": shopify_settings.sales_invoice_series or "SI-Shopify-"

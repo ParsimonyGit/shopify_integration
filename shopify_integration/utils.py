@@ -99,21 +99,15 @@ def get_shopify_document(
 
 	shopify_docs = [] if doctype == "Delivery Note" else frappe._dict()
 
-	if order:
-		shopify_order_id = cstr(order.id)
-		shopify_order_number = cstr(order.attributes.get("order_number"))
-	elif order_id:
-		shopify_order_id = order_id
-		shopify_order_number = None
+	shopify_order_id = cstr(order.id) or order_id
+	if not shopify_order_id:
+		return shopify_docs
 
 	existing_docs = frappe.db.get_all(doctype,
 		filters={
 			"docstatus": ["<", 2],
 			"shopify_settings": shop_name,
-		},
-		or_filters={
 			"shopify_order_id": shopify_order_id,
-			"shopify_order_number": shopify_order_number
 		})
 
 	if existing_docs:
