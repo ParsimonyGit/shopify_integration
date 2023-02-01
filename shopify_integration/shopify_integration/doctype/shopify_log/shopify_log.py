@@ -75,5 +75,5 @@ def make_shopify_log(
 def get_message(exception: Exception):
 	if hasattr(exception, "message"):
 		return exception.message
-	elif hasattr(exception, "__str__"):
+	if hasattr(exception, "__str__"):
 		return exception.__str__()

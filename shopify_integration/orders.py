@@ -167,6 +167,9 @@ def create_sales_order(
 		"Customer", {"shopify_customer_id": shopify_customer.id}, "name"
 	)
 
+	shopify_order_name = shopify_order.attributes.get("name")
+	shopify_order_name = shopify_order_name.split("#")[-1]
+
 	sales_order: "SalesOrder" = frappe.get_doc(
 		{
 			"doctype": "Sales Order",
@@ -174,6 +177,7 @@ def create_sales_order(
 			"shopify_settings": shopify_settings.name,
 			"shopify_order_id": shopify_order.id,
 			"shopify_order_number": shopify_order.attributes.get("order_number"),
+			"shopify_order_name": shopify_order_name,
 			"customer": customer or shopify_settings.default_customer,
 			"transaction_date": getdate(shopify_order.attributes.get("created_at")),
 			"delivery_date": getdate(shopify_order.attributes.get("created_at")),

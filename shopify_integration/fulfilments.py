@@ -101,6 +101,9 @@ def create_delivery_notes(
 		return []
 
 	delivery_notes = []
+	shopify_order_name = shopify_order.attributes.get("name")
+	shopify_order_name = shopify_order_name.split("#")[-1]
+
 	fulfillment: "Fulfillment"
 	for fulfillment in shopify_order.attributes.get("fulfillments"):
 		existing_delivery = frappe.db.get_value("Delivery Note",
@@ -112,6 +115,7 @@ def create_delivery_notes(
 				"shopify_settings": shopify_settings.name,
 				"shopify_order_id": shopify_order.id,
 				"shopify_order_number": shopify_order.attributes.get("order_number"),
+				"shopify_order_name": shopify_order_name,
 				"shopify_fulfillment_id": fulfillment.id,
 				"set_posting_time": True,
 				"posting_date": getdate(fulfillment.attributes.get("created_at")),

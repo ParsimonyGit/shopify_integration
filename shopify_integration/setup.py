@@ -78,7 +78,10 @@ def setup_custom_fields(args=None):
 				insert_after="shopify_order_number"),
 			dict(fieldname="shopify_order_id", label="Shopify Order ID",
 				fieldtype="Data", insert_after="cb_shopify",
-				read_only=1, print_hide=1, translatable=0)
+				read_only=1, print_hide=1, translatable=0),
+			dict(fieldname="shopify_order_name", label="Shopify Order Name",
+				fieldtype="Data", insert_after="shopify_order_id",
+				read_only=1, print_hide=1, translatable=0),
 		],
 		"Sales Order Item": [
 			dict(
@@ -104,7 +107,10 @@ def setup_custom_fields(args=None):
 				insert_after="shopify_order_number"),
 			dict(fieldname="shopify_order_id", label="Shopify Order ID",
 				fieldtype="Data", insert_after="cb_shopify",
-				read_only=1, print_hide=1, translatable=0)
+				read_only=1, print_hide=1, translatable=0),
+			dict(fieldname="shopify_order_name", label="Shopify Order Name",
+				fieldtype="Data", insert_after="shopify_order_id",
+				read_only=1, print_hide=1, translatable=0),
 		],
 		"Sales Invoice Item": [
 			dict(
@@ -131,9 +137,12 @@ def setup_custom_fields(args=None):
 			dict(fieldname="shopify_order_id", label="Shopify Order ID",
 				fieldtype="Data", insert_after="cb_shopify",
 				read_only=1, print_hide=1, translatable=0),
-			dict(fieldname="shopify_fulfillment_id", label="Shopify Fulfillment ID",
+			dict(fieldname="shopify_order_name", label="Shopify Order Name",
 				fieldtype="Data", insert_after="shopify_order_id",
-				read_only=1, print_hide=1, translatable=0)
+				read_only=1, print_hide=1, translatable=0),
+			dict(fieldname="shopify_fulfillment_id", label="Shopify Fulfillment ID",
+				fieldtype="Data", insert_after="shopify_order_name",
+				read_only=1, print_hide=1, translatable=0),
 		],
 		"Delivery Note Item": [
 			dict(
