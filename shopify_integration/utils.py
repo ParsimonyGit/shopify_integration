@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 import frappe
 from frappe import _
@@ -78,8 +78,8 @@ def get_tax_account_head(shop_name: str, tax_type: str):
 def get_shopify_document(
 	shop_name: str,
 	doctype: str,
-	order: "Order" = None,
-	order_id: str = str()
+	order: Optional["Order"] = None,
+	order_id: Optional[str] = None
 ):
 	"""
 	Check if a Shopify order exists, including references from other apps.
@@ -99,7 +99,7 @@ def get_shopify_document(
 
 	shopify_docs = [] if doctype == "Delivery Note" else frappe._dict()
 
-	shopify_order_id = cstr(order.id) or order_id
+	shopify_order_id = cstr(order.id) if order else order_id
 	if not shopify_order_id:
 		return shopify_docs
 

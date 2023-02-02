@@ -141,6 +141,7 @@ def create_sales_invoice(shop_name: str, shopify_order: "Order", sales_order: "S
 
 		sales_invoice.flags.ignore_mandatory = True
 		sales_invoice.insert(ignore_mandatory=True)
+		sales_invoice.submit()
 		frappe.db.commit()
 		return sales_invoice
 
@@ -215,6 +216,6 @@ def create_sales_return(
 					"tax_amount": flt(adjustment.amount)
 				})
 
-	return_invoice.save()
+	return_invoice.insert()
 	return_invoice.submit()
 	return return_invoice
