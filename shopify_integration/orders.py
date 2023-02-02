@@ -226,6 +226,13 @@ def get_order_item(shopify_item: "LineItem", shopify_settings: "ShopifySettings"
 		"Stock Settings", "stock_uom"
 	)
 
+	# TODO: both quantity and fulfillable_quantity don't denote actual ordered quantity
+	# figure out a way to get the actual ordered quantity (including edits)
+	qty = flt(
+		shopify_item.attributes.get("fulfillable_quantity")
+		or shopify_item.attributes.get("quantity")
+	)
+
 	return {
 		"shopify_order_item_id": str(shopify_item.id),
 		"item_code": item_code,
@@ -236,7 +243,7 @@ def get_order_item(shopify_item: "LineItem", shopify_settings: "ShopifySettings"
 		# way to get the discount amount
 		# "discount_amount": flt(shopify_item.attributes.get("total_discount")),
 		"delivery_date": nowdate(),
-		"qty": flt(shopify_item.attributes.get("fulfillable_quantity")),
+		"qty": qty,
 		"stock_uom": stock_uom,
 		"conversion_factor": 1,
 		"warehouse": shopify_settings.warehouse,
