@@ -22,17 +22,14 @@ def create_shopify_documents(
 	"""
 	Create the following from a Shopify order:
 
-		- Sales Order
-		- Sales Invoice (if paid)
-		- Delivery Note (if fulfilled)
+	- Sales Order
+	- Sales Invoice (if paid)
+	- Delivery Note (if fulfilled)
 
-	Args:
-
-		shop_name (str): The name of the Shopify configuration for the store.
-		order_id (str): The Shopify order ID.
-		log_id (str, optional): The ID of an existing Shopify Log. Defaults
-			to an empty string.
-		amended_from (str, optional): The name of the original cancelled Sales Order.
+	:param shop_name: The name of the Shopify configuration for the store
+	:param order_id: The Shopify order ID
+	:param log_id: (optional) The ID of an existing Shopify Log
+	:param amended_from: (optional) The name of the original cancelled Sales Order
 	"""
 
 	from shopify_integration.fulfilments import create_shopify_delivery
@@ -78,15 +75,11 @@ def create_shopify_order(
 	"""
 	Create a Sales Order document for a Shopify order.
 
-	Args:
-		shop_name (str): The name of the Shopify configuration for the store.
-		shopify_order (Order): The Shopify order data.
-		log_id (str, optional): The ID of an existing Shopify Log. Defaults
-			to an empty string.
-		amended_from (str, optional): The name of the original cancelled Sales Order.
-
-	Returns:
-		SalesOrder: The created Sales Order document, if any, otherwise None.
+	:param shop_name: The name of the Shopify configuration for the store
+	:param order_id: The Shopify order ID
+	:param log_id: (optional) The ID of an existing Shopify Log
+	:param amended_from: (optional) The name of the original cancelled Sales Order
+	:return: The created Sales Order document, if any, otherwise None
 	"""
 
 	from shopify_integration.customers import validate_customer
@@ -130,11 +123,9 @@ def update_shopify_order(shop_name: str, order_id: str, log_id: str = str()):
 	Instead of updating the existing documents, cancel them and create a new series of
 	sales documents for the Shopify order.
 
-	Args:
-		shop_name (str): The name of the Shopify configuration for the store.
-		order_id (str): The Shopify order ID.
-		log_id (str, optional): The ID of an existing Shopify Log. Defaults
-			to an empty string.
+	:param shop_name: The name of the Shopify configuration for the store
+	:param order_id: The Shopify order ID
+	:param log_id: (optional) The ID of an existing Shopify Log
 	"""
 
 	if existing_so := get_shopify_document(
@@ -152,13 +143,10 @@ def create_sales_order(
 	"""
 	Helper function to create a Sales Order document for a Shopify order.
 
-	Args:
-		shop_name (str): The name of the Shopify configuration for the store.
-		shopify_order (Order): The Shopify order data.
-		amended_from (str, optional): The name of the original cancelled Sales Order.
-
-	Returns:
-		SalesOrder: The created Sales Order document, if any, otherwise None.
+	:param shop_name: The name of the Shopify configuration for the store
+	:param shopify_order: The Shopify order data
+	:param amended_from: (optional) The name of the original cancelled Sales Order
+	:return: The created Sales Order document, if any, otherwise None
 	"""
 
 	shopify_settings: "ShopifySettings" = frappe.get_doc("Shopify Settings", shop_name)
@@ -254,19 +242,18 @@ def get_order_taxes(shopify_order: "Order", shopify_settings: "ShopifySettings")
 	taxes = []
 
 	# add shipping charges
+	shipping_descriptions = []
 	for shipping in shopify_order.attributes.get("shipping_lines"):
-		if shipping.attributes.get("price"):
-			taxes.append(
-				{
-					"charge_type": "Actual",
-					"account_head": get_tax_account_head(
-						shopify_settings.name, "shipping"
-					),
-					"description": shipping.attributes.get("title"),
-					"tax_amount": flt(shipping.attributes.get("price")),
-					"cost_center": shopify_settings.cost_center,
-				}
-			)
+		shipping_descriptions.append(shipping.attributes.get("title"))
+		taxes.append(
+			{
+				"charge_type": "Actual",
+				"account_head": get_tax_account_head(shopify_settings.name, "shipping"),
+				"description": shipping.attributes.get("title"),
+				"tax_amount": flt(shipping.attributes.get("price")),
+				"cost_center": shopify_settings.cost_center,
+			}
+		)
 
 	# add additional taxes and fees
 	for tax in shopify_order.attributes.get("tax_lines"):
@@ -291,10 +278,25 @@ def get_order_taxes(shopify_order: "Order", shopify_settings: "ShopifySettings")
 
 	# TODO: Shopify's API doesn't have a clear way to identify changes in taxes
 	# from orders being edited. Instead of calculating the difference, we'll
-	# just add a tax line for the difference
-	total_taxes = sum(tax.get("tax_amount") for tax in taxes)
-	order_taxes = flt(shopify_order.attributes.get("current_total_tax"))
-	difference = order_taxes - total_taxes
+	# just add a tax line for the difference; since shipping lines are not
+	# considered as a "tax" in Shopify. we'll remove them from the total taxes
+	erpnext_order_taxes = sum(
+		tax.get("tax_amount")
+		for tax in taxes
+		if tax.get("description") not in shipping_descriptions
+	)
+
+	# calculate the difference between the Shopify taxes with the total taxes in the
+	# ERPNext sales order without the shipping lines
+	shopify_order_taxes = flt(shopify_order.attributes.get("current_total_tax"))
+	currency_precision = flt(
+		frappe.db.get_single_value("System Settings", "currency_precision")
+	)
+
+	difference = flt(
+		shopify_order_taxes - erpnext_order_taxes, precision=currency_precision or 2
+	)
+
 	if difference:
 		taxes.append(
 			{
@@ -313,11 +315,9 @@ def cancel_shopify_order(shop_name: str, order_id: str, log_id: str = str()):
 	"""
 	Cancel all sales documents if a Shopify order is cancelled.
 
-	Args:
-		shop_name (str): The name of the Shopify configuration for the store.
-		order_id (Order): The Shopify order ID.
-		log_id (str, optional): The ID of an existing Shopify Log.
-			Defaults to an empty string.
+	:param shop_name: The name of the Shopify configuration for the store
+	:param order_id: The Shopify order ID
+	:param log_id: (optional) The ID of an existing Shopify Log
 	"""
 
 	frappe.set_user("Administrator")
