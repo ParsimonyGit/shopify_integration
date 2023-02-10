@@ -11,7 +11,43 @@
   "template_suffix": null,
   "published_scope": "global",
   "tags": "Category_Curtain Accessories, Type_Holdback",
-  "variants": [],
+  "variants": [
+    {
+      "id": 43910438551766,
+      "title": "Pure White",
+      "price": "3.00",
+      "sku": "WSC-CSPW",
+      "position": 1,
+      "inventory_policy": "deny",
+      "compare_at_price": null,
+      "fulfillment_service": "manual",
+      "inventory_management": "shopify",
+      "option1": "Pure White",
+      "option2": null,
+      "option3": null,
+      "created_at": "2022-12-28T09:39:28-06:00",
+      "updated_at": "2023-02-08T11:17:26-06:00",
+      "taxable": true,
+      "barcode": "",
+      "grams": 136,
+      "image_id": 38999332159702,
+      "weight": 0.3,
+      "weight_unit": "lb",
+      "inventory_item_id": 46013555376342,
+      "inventory_quantity": 48,
+      "old_inventory_quantity": 48,
+      "requires_shipping": true,
+      "admin_graphql_api_id": "gid://shopify/ProductVariant/43910438551766"}
+  ],
+  "options": [
+    {
+      "id": 9547415191766,
+      "product_id": 7504933519574,
+      "name": "Select Color:",
+      "position": 1,
+      "values": ["Pure White"]
+    }
+  ],
   "images": [
     {
       "id": 8539321735,

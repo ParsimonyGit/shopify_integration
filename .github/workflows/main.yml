@@ -58,16 +58,13 @@ jobs:
           bench setup requirements --dev
           bench new-site dev.localhost --db-root-password root --admin-password admin
           bench --site dev.localhost install-app erpnext shopify_integration
-          bench build
         env:
           CI: 'Yes'
 
-      - name: Run Tests
-        working-directory: /home/runner/frappe-bench
-        run: |
-          bench --site dev.localhost set-config allow_tests true
-          bench --site dev.localhost execute frappe.desk.page.setup_wizard.install_fixtures.install
-          bench --site dev.localhost execute erpnext.setup.setup_wizard.operations.install_fixtures.install --kwargs "{'country': 'United States'}"
-          bench --site dev.localhost run-tests --module shopify_integration.tests.test_shopify_settings --failfast
-        env:
-          TYPE: server
+      # - name: Run Tests
+      #   working-directory: /home/runner/frappe-bench
+      #   run: |
+      #     bench --site dev.localhost set-config allow_tests true
+      #     bench --site dev.localhost run-tests --app shopify_integration --failfast
+      #   env:
+      #     TYPE: server

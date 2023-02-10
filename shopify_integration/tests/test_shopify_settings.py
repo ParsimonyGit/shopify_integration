@@ -12,6 +12,7 @@ from shopify import (
 	Fulfillment,
 	Image,
 	LineItem,
+	Option,
 	Order,
 	Product,
 	ShippingLine,
@@ -33,7 +34,8 @@ from shopify_integration.utils import get_shopify_document
 
 
 class ShopifySettings(FrappeTestCase):
-	def setUp(self):
+	@staticmethod
+	def setUp():
 		frappe.set_user("Administrator")
 
 		if not frappe.db.get_value("Customer", "_Test Customer 1"):
@@ -143,6 +145,13 @@ def prepare_customer_format(customer_data):
 
 def prepare_product_format(product_data):
 	# simulate the Shopify product object with proper class instances
+	if "options" in product_data:
+		product_options = []
+		for option in product_data.get("options"):
+			product_option = Option()
+			product_option.attributes.update(option)
+			product_options.append(product_option)
+		product_data.update({"options": product_options})
 	if "image" in product_data:
 		product_image = Image()
 		product_image.attributes.update(product_data.get("image"))
