@@ -5,7 +5,6 @@
 import json
 import os
 import secrets
-import unittest
 
 from shopify import (
 	Address,
@@ -13,6 +12,7 @@ from shopify import (
 	Fulfillment,
 	Image,
 	LineItem,
+	Option,
 	Order,
 	Product,
 	ShippingLine,
@@ -20,7 +20,8 @@ from shopify import (
 
 import frappe
 from frappe.core.doctype.data_import.data_import import import_doc
-from frappe.test_runner import make_test_records
+from frappe.test_runner import make_test_objects
+from frappe.tests.utils import FrappeTestCase
 from frappe.utils import cstr
 
 from shopify_integration.customers import create_customer
@@ -28,24 +29,33 @@ from shopify_integration.fulfilments import create_shopify_delivery
 from shopify_integration.invoices import create_shopify_invoice
 from shopify_integration.orders import create_sales_order
 from shopify_integration.products import make_item
+from shopify_integration.setup import setup_custom_fields
 from shopify_integration.utils import get_shopify_document
 
 
-class ShopifySettings(unittest.TestCase):
-	def setUp(self):
+class ShopifySettings(FrappeTestCase):
+	@staticmethod
+	def setUp():
 		frappe.set_user("Administrator")
 
 		if not frappe.db.get_value("Customer", "_Test Customer 1"):
-			make_test_records("Customer", force=True)
+			with open(
+				frappe.get_app_path(
+					"erpnext", "selling/doctype/customer/test_records.json"
+				)
+			) as customer:
+				customer_data = json.load(customer)
+				make_test_objects("Customer", customer_data)
 
 		# use the fixture data
 		import_doc(
 			frappe.get_app_path(
 				"shopify_integration",
-				"shopify_integration/doctype/shopify_settings/test_data/custom_field.json",
+				"tests/test_data/custom_field.json",
 			)
 		)
 
+		setup_custom_fields()
 		frappe.reload_doctype("Customer")
 		frappe.reload_doctype("Sales Order")
 		frappe.reload_doctype("Delivery Note")
@@ -135,6 +145,13 @@ def prepare_customer_format(customer_data):
 
 def prepare_product_format(product_data):
 	# simulate the Shopify product object with proper class instances
+	if "options" in product_data:
+		product_options = []
+		for option in product_data.get("options"):
+			product_option = Option()
+			product_option.attributes.update(option)
+			product_options.append(product_option)
+		product_data.update({"options": product_options})
 	if "image" in product_data:
 		product_image = Image()
 		product_image.attributes.update(product_data.get("image"))
