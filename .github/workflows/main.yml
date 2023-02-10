@@ -1,0 +1,70 @@
+name: Tests
+
+on: [push, pull_request]
+
+concurrency:
+  group: develop-shopify_integration-${{ github.event.number }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: Server
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        python: ['3.8', '3.10']
+      fail-fast: false
+
+    services:
+      mariadb:
+        image: mariadb:10.6
+        env:
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=5s --health-timeout=2s --health-retries=3
+
+    steps:
+      - name: Clone
+        uses: actions/checkout@v3
+
+      - name: Setup Python ${{ matrix.python }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python }}
+
+      # Instead of using setup-python's caching, separarely cache the python environment
+      # https://github.com/actions/setup-python/issues/330#issuecomment-1416883170
+      - name: Cache Python ${{ matrix.python }}
+        uses: actions/cache@v3
+        with:
+          path: ${{ env.pythonLocation }}
+          key: ${{ env.pythonLocation }}-${{ hashFiles('**/*requirements.txt', '**/pyproject.toml', '**/setup.py') }}
+
+      - name: Setup
+        run: |
+          pip install frappe-bench
+          bench init --frappe-path https://github.com/ParsimonyGit/frappe.git --frappe-branch parsimony-production-v13 --skip-redis-config-generation --ignore-exist --skip-assets --python "$(which python)" ~/frappe-bench
+          mysql --host 127.0.0.1 --port 3306 -u root -proot -e "SET GLOBAL character_set_server = 'utf8mb4'"
+          mysql --host 127.0.0.1 --port 3306 -u root -proot -e "SET GLOBAL collation_server = 'utf8mb4_unicode_ci'"
+
+      - name: Install
+        working-directory: /home/runner/frappe-bench
+        run: |
+          bench get-app http://github.com/ParsimonyGit/erpnext --branch parsimony-production-v13 --skip-assets
+          bench get-app shopify_integration $GITHUB_WORKSPACE
+          bench setup requirements --dev
+          bench new-site dev.localhost --db-root-password root --admin-password admin
+          bench --site dev.localhost install-app erpnext shopify_integration
+        env:
+          CI: 'Yes'
+
+      # - name: Run Tests
+      #   working-directory: /home/runner/frappe-bench
+      #   run: |
+      #     bench --site dev.localhost set-config allow_tests true
+      #     bench --site dev.localhost run-tests --app shopify_integration --failfast
+      #   env:
+      #     TYPE: server
