@@ -6,6 +6,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint, cstr
 
+from shopify_integration.hook_events.item import get_item_alias
 from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log import (
 	make_shopify_log,
 )
@@ -32,8 +33,7 @@ def sync_items_from_shopify(shop_name: str):
 	For a given Shopify store, sync all active products and create Item
 	documents for missing products.
 
-	Args:
-		shop_name (str): The name of the Shopify configuration for the store.
+	:param shop_name: The name of the Shopify configuration for the store
 	"""
 
 	frappe.set_user("Administrator")
@@ -70,13 +70,12 @@ def validate_items(shop_name: str, shopify_order: "Order"):
 	Ensure that a Shopify order's items exist before processing the order.
 
 	For every line item in the order, the order of priority for the reference field is:
-		- Product ID
-		- Variant ID
-		- Item Title
+	- Product ID
+	- Variant ID
+	- Item Title
 
-	Args:
-		shop_name (str): The name of the Shopify configuration for the store.
-		shopify_order (Order): The Shopify order data.
+	:param shop_name: The name of the Shopify configuration for the store
+	:param shopify_order: The Shopify order data
 	"""
 
 	shopify_settings: "ShopifySettings" = frappe.get_doc("Shopify Settings", shop_name)
@@ -126,9 +125,12 @@ def validate_items(shop_name: str, shopify_order: "Order"):
 
 
 def get_item_code(shopify_item: "LineItem") -> Optional[str]:
-	item_code = frappe.db.get_value(
-		"Item", shopify_item.attributes.get("sku"), "item_code"
-	)
+	item_code = get_item_alias(shopify_item)
+
+	if not item_code:
+		item_code = frappe.db.get_value(
+			"Item", shopify_item.attributes.get("sku"), "item_code"
+		)
 
 	if not item_code:
 		item_code = frappe.db.get_value(
@@ -176,8 +178,7 @@ def make_item(
 		# if template/variant creation is disabled, only create variant items
 		if any(
 			[
-				isinstance(shopify_item, Product)
-				and has_variants(shopify_item),
+				isinstance(shopify_item, Product) and has_variants(shopify_item),
 				isinstance(shopify_item, Variant),
 			]
 		):
@@ -287,15 +288,11 @@ def sync_item(
 	Sync a Shopify product or variant and create a new Item document. If `update` is set
 	to `True`, then any existing items found are updated as well.
 
-	Args:
-		shopify_settings (ShopifySettings): The Shopify configuration for the store.
-		shopify_item (Product | Variant): The Shopify `Product` or `Variant` data.
-		attributes (List[Dict], optional): The item attributes for the Shopify item.
-			Defaults to None.
-		variant_of (str, optional): If the item is a variant of an existing Item.
-			Defaults to an empty string.
-		update (bool, optional): `True` if existing items should be updated, otherwise `False`.
-			Defaults to False.
+	:param shopify_settings: The Shopify configuration for the store
+	:param shopify_item: The Shopify `Product` or `Variant` data
+	:param attributes: The item attributes for the Shopify item, defaults to None
+	:param variant_of: (optional) If the item is a variant of an existing Item, defaults to an empty string
+	:param update: (optional) Set if existing items should be updated, defaults to False
 	"""
 
 	product_id = variant_id = item_name = None
@@ -319,7 +316,8 @@ def sync_item(
 			if products:
 				item_name = f"{products[0].title} - {item_title}"
 
-	item_code = cstr(shopify_sku or variant_id or product_id or item_name)
+	item_alias = get_item_alias(shopify_item)
+	item_code = cstr(item_alias or shopify_sku or variant_id or product_id or item_name)
 	item_description = shopify_item.attributes.get("body_html")
 	item_has_variants = (
 		has_variants(shopify_item) if shopify_settings.create_variant_items else False
