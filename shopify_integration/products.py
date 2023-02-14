@@ -125,9 +125,12 @@ def validate_items(shop_name: str, shopify_order: "Order"):
 
 
 def get_item_code(shopify_item: "LineItem") -> Optional[str]:
-	item_code = frappe.db.get_value(
-		"Item", shopify_item.attributes.get("sku"), "item_code"
-	)
+	item_code = get_item_alias(shopify_item)
+
+	if not item_code:
+		item_code = frappe.db.get_value(
+			"Item", shopify_item.attributes.get("sku"), "item_code"
+		)
 
 	if not item_code:
 		item_code = frappe.db.get_value(
@@ -154,9 +157,6 @@ def get_item_code(shopify_item: "LineItem") -> Optional[str]:
 			{"item_name": shopify_item.attributes.get("title", "").strip()},
 			"item_code",
 		)
-
-	if not item_code:
-		item_code = get_item_alias(shopify_item)
 
 	return item_code
 
