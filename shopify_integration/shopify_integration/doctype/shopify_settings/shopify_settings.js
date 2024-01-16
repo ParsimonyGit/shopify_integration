@@ -1,12 +1,10 @@
-/* global frappe, __ */
-
 // Copyright (c) 2021, Parsimony, LLC and Contributors
 // License: GNU General Public License v3. See license.txt
 
 frappe.provide("erpnext_integrations.shopify_settings");
 frappe.ui.form.on("Shopify Settings", {
 	onload: (frm) => {
-		frm.call("get_series").then(r => {
+		frm.call("get_series").then((r) => {
 			$.each(r.message, (key, value) => {
 				set_field_options(key, value);
 			});
@@ -35,7 +33,7 @@ frappe.ui.form.on("Shopify Settings", {
 
 				const base_shopify_url = frappe.utils.is_url(frm.doc.shopify_url)
 					? frm.doc.shopify_url
-					: `//${frm.doc.shopify_url}`
+					: `//${frm.doc.shopify_url}`;
 
 				if (frm.doc.app_type === "Custom") {
 					frm.set_intro(`
@@ -51,67 +49,91 @@ frappe.ui.form.on("Shopify Settings", {
 					frm.add_custom_button(__("Authorize"), () => {
 						frappe.call({
 							method: "shopify_integration.oauth.initiate_web_application_flow",
-							args: { "settings": frm.doc },
+							args: { settings: frm.doc },
 							freeze: true,
 							callback: function (r) {
 								window.open(r.message, "_blank");
-							}
+							},
 						});
 					});
 				}
 
-				frm.add_custom_button(__("Products"), () => {
-					frm.call({
-						doc: frm.doc,
-						method: "sync_products",
-						freeze: true,
-						callback: (r) => {
-							if (!r.exc) {
-								frappe.msgprint(__("Product sync has been queued. This may take a few minutes."));
-								frm.reload_doc();
-							} else {
-								frappe.msgprint(__("Something went wrong while trying to sync products. Please check the latest Shopify logs."))
-							}
-						}
-					})
-				}, __("Sync"));
-
-				frm.add_custom_button(__("Payouts"), () => {
-					frappe.prompt(
-						[
-							{
-								"fieldname": "start_date",
-								"fieldtype": "Datetime",
-								"label": __("Payout Start Date"),
-								"description": __("Defaults to the 'Last Sync Datetime' field"),
-								"default": frm.doc.last_sync_datetime,
-								"reqd": 1
-							}
-						],
-						(values) => {
-							const { start_date } = values;
-							frm.call({
-								doc: frm.doc,
-								method: "sync_payouts",
-								args: { "start_date": start_date },
-								freeze: true,
-								callback: (r) => {
-									if (!r.exc) {
-										frappe.msgprint(__("Payout sync has been queued. This may take a few minutes."));
-										frm.reload_doc();
-									} else {
-										frappe.msgprint(__("Something went wrong while trying to sync payouts. Please check the latest Shopify logs."))
-									}
+				frm.add_custom_button(
+					__("Products"),
+					() => {
+						frm.call({
+							doc: frm.doc,
+							method: "sync_products",
+							freeze: true,
+							callback: (r) => {
+								if (!r.exc) {
+									frappe.msgprint(
+										__(
+											"Product sync has been queued. This may take a few minutes."
+										)
+									);
+									frm.reload_doc();
+								} else {
+									frappe.msgprint(
+										__(
+											"Something went wrong while trying to sync products. Please check the latest Shopify logs."
+										)
+									);
 								}
-							})
-						},
-						__("Select Start Date")
-					);
-				}, __("Sync"));
+							},
+						});
+					},
+					__("Sync")
+				);
+
+				frm.add_custom_button(
+					__("Payouts"),
+					() => {
+						frappe.prompt(
+							[
+								{
+									fieldname: "start_date",
+									fieldtype: "Datetime",
+									label: __("Payout Start Date"),
+									description: __("Defaults to the 'Last Sync Datetime' field"),
+									default: frm.doc.last_sync_datetime,
+									reqd: 1,
+								},
+							],
+							(values) => {
+								const { start_date } = values;
+								frm.call({
+									doc: frm.doc,
+									method: "sync_payouts",
+									args: { start_date: start_date },
+									freeze: true,
+									callback: (r) => {
+										if (!r.exc) {
+											frappe.msgprint(
+												__(
+													"Payout sync has been queued. This may take a few minutes."
+												)
+											);
+											frm.reload_doc();
+										} else {
+											frappe.msgprint(
+												__(
+													"Something went wrong while trying to sync payouts. Please check the latest Shopify logs."
+												)
+											);
+										}
+									},
+								});
+							},
+							__("Select Start Date")
+						);
+					},
+					__("Sync")
+				);
 			}
 		}
 	},
-})
+});
 
 $.extend(erpnext_integrations.shopify_settings, {
 	setup_queries: (frm) => {
@@ -120,8 +142,8 @@ $.extend(erpnext_integrations.shopify_settings, {
 				filters: {
 					company: doc.company,
 					is_group: false,
-				}
-			}
+				},
+			};
 		});
 
 		frm.set_query("tax_account", (doc) => {
@@ -129,9 +151,9 @@ $.extend(erpnext_integrations.shopify_settings, {
 				query: "erpnext.controllers.queries.tax_account_query",
 				filters: {
 					account_type: ["Tax", "Chargeable", "Expense Account"],
-					company: doc.company
-				}
-			}
+					company: doc.company,
+				},
+			};
 		});
 
 		frm.set_query("shipping_account", (doc) => {
@@ -139,9 +161,9 @@ $.extend(erpnext_integrations.shopify_settings, {
 				query: "erpnext.controllers.queries.tax_account_query",
 				filters: {
 					account_type: ["Tax", "Chargeable", "Expense Account"],
-					company: doc.company
-				}
-			}
+					company: doc.company,
+				},
+			};
 		});
 
 		frm.set_query("payment_fee_account", (doc) => {
@@ -149,9 +171,9 @@ $.extend(erpnext_integrations.shopify_settings, {
 				query: "erpnext.controllers.queries.tax_account_query",
 				filters: {
 					account_type: ["Chargeable", "Expense Account"],
-					company: doc.company
-				}
-			}
+					company: doc.company,
+				},
+			};
 		});
 
 		frm.set_query("cash_bank_account", (doc) => {
@@ -160,9 +182,9 @@ $.extend(erpnext_integrations.shopify_settings, {
 					["Account", "account_type", "in", ["Cash", "Bank"]],
 					["Account", "root_type", "=", "Asset"],
 					["Account", "is_group", "=", false],
-					["Account", "company", "=", doc.company]
-				]
-			}
+					["Account", "company", "=", doc.company],
+				],
+			};
 		});
 
 		frm.set_query("cost_center", (doc) => {
@@ -170,12 +192,12 @@ $.extend(erpnext_integrations.shopify_settings, {
 				filters: {
 					company: doc.company,
 					is_group: false,
-				}
-			}
+				},
+			};
 		});
 
 		frm.set_query("price_list", () => {
-			return { filters: { enabled: true, selling: true } }
+			return { filters: { enabled: true, selling: true } };
 		});
-	}
-})
+	},
+});

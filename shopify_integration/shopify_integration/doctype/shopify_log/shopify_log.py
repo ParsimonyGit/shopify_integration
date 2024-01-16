@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright (c) 2021, Parsimony, LLC and contributors
 # For license information, please see license.txt
 
@@ -32,9 +31,9 @@ class ShopifyLog(Document):
 def make_shopify_log(
 	shop_name: str,
 	status: str = "Queued",
-	message: Optional[str] = None,
-	response_data: Optional[Union[str, Dict]] = None,
-	exception: Optional[Union[Exception, List]] = None,
+	message: str | None = None,
+	response_data: str | dict | None = None,
+	exception: Exception | list | None = None,
 	rollback: bool = False,
 ):
 	# if name not provided by log calling method then fetch existing queued state log
@@ -54,9 +53,7 @@ def make_shopify_log(
 	if not isinstance(response_data, str):
 		response_data = json.dumps(response_data, sort_keys=True, indent=4)
 
-	error_message = (
-		message or get_message(exception) or "Something went wrong while syncing"
-	)
+	error_message = message or get_message(exception) or "Something went wrong while syncing"
 
 	log.update(
 		{

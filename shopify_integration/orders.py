@@ -11,13 +11,14 @@ from shopify_integration.utils import get_shopify_document, get_tax_account_head
 if TYPE_CHECKING:
 	from erpnext.selling.doctype.sales_order.sales_order import SalesOrder
 	from shopify import LineItem, Order
+
 	from shopify_integration.shopify_integration.doctype.shopify_settings.shopify_settings import (
 		ShopifySettings,
 	)
 
 
 def create_shopify_documents(
-	shop_name: str, order_id: str, log_id: str = str(), amended_from: str = str()
+	shop_name: str, order_id: str, log_id: str = "", amended_from: str = ""
 ):
 	"""
 	Create the following from a Shopify order:
@@ -48,7 +49,7 @@ def create_shopify_documents(
 		create_shopify_delivery(shop_name, order, sales_order, log_id)
 
 
-def get_shopify_order(shop_name: str, order_id: str, log_id: str = str()):
+def get_shopify_order(shop_name: str, order_id: str, log_id: str = ""):
 	frappe.flags.log_id = log_id
 
 	settings: "ShopifySettings" = frappe.get_doc("Shopify Settings", shop_name)
@@ -69,8 +70,8 @@ def get_shopify_order(shop_name: str, order_id: str, log_id: str = str()):
 def create_shopify_order(
 	shop_name: str,
 	shopify_order: "Order",
-	log_id: str = str(),
-	amended_from: str = str(),
+	log_id: str = "",
+	amended_from: str = "",
 ):
 	"""
 	Create a Sales Order document for a Shopify order.
@@ -91,17 +92,13 @@ def create_shopify_order(
 		shop_name=shop_name, doctype="Sales Order", order=shopify_order
 	):
 		existing_so: "SalesOrder"
-		make_shopify_log(
-			shop_name, status="Skipped", response_data=shopify_order.to_dict()
-		)
+		make_shopify_log(shop_name, status="Skipped", response_data=shopify_order.to_dict())
 		return existing_so
 
 	try:
 		validate_customer(shop_name, shopify_order)
 		validate_items(shop_name, shopify_order)
-		sales_order = create_sales_order(
-			shop_name, shopify_order, amended_from=amended_from
-		)
+		sales_order = create_sales_order(shop_name, shopify_order, amended_from=amended_from)
 	except Exception as e:
 		make_shopify_log(
 			shop_name,
@@ -110,13 +107,11 @@ def create_shopify_order(
 			exception=e,
 		)
 	else:
-		make_shopify_log(
-			shop_name, status="Success", response_data=shopify_order.to_dict()
-		)
+		make_shopify_log(shop_name, status="Success", response_data=shopify_order.to_dict())
 		return sales_order
 
 
-def update_shopify_order(shop_name: str, order_id: str, log_id: str = str()):
+def update_shopify_order(shop_name: str, order_id: str, log_id: str = ""):
 	"""
 	Webhook endpoint to process changes in a Shopify order.
 
@@ -132,14 +127,10 @@ def update_shopify_order(shop_name: str, order_id: str, log_id: str = str()):
 		shop_name=shop_name, doctype="Sales Order", order_id=order_id
 	):
 		cancel_shopify_order(shop_name, order_id, log_id)
-		create_shopify_documents(
-			shop_name, order_id, log_id, amended_from=existing_so.name
-		)
+		create_shopify_documents(shop_name, order_id, log_id, amended_from=existing_so.name)
 
 
-def create_sales_order(
-	shop_name: str, shopify_order: "Order", *, amended_from: str = str()
-):
+def create_sales_order(shop_name: str, shopify_order: "Order", *, amended_from: str = ""):
 	"""
 	Helper function to create a Sales Order document for a Shopify order.
 
@@ -151,9 +142,7 @@ def create_sales_order(
 
 	shopify_settings: "ShopifySettings" = frappe.get_doc("Shopify Settings", shop_name)
 	shopify_customer = shopify_order.attributes.get("customer", frappe._dict())
-	customer = frappe.db.get_value(
-		"Customer", {"shopify_customer_id": shopify_customer.id}, "name"
-	)
+	customer = frappe.db.get_value("Customer", {"shopify_customer_id": shopify_customer.id}, "name")
 
 	shopify_order_name = shopify_order.attributes.get("name")
 	shopify_order_name = shopify_order_name.split("#")[-1]
@@ -172,14 +161,10 @@ def create_sales_order(
 			"company": shopify_settings.company,
 			"selling_price_list": shopify_settings.price_list,
 			"ignore_pricing_rule": 1,
-			"items": get_order_items(
-				shopify_order.attributes.get("line_items", []), shopify_settings
-			),
+			"items": get_order_items(shopify_order.attributes.get("line_items", []), shopify_settings),
 			"taxes": get_order_taxes(shopify_order, shopify_settings),
 			"apply_discount_on": "Grand Total",
-			"discount_amount": flt(
-				shopify_order.attributes.get("current_total_discounts")
-			),
+			"discount_amount": flt(shopify_order.attributes.get("current_total_discounts")),
 			"amended_from": amended_from,
 		}
 	)
@@ -191,9 +176,7 @@ def create_sales_order(
 	return sales_order
 
 
-def get_order_items(
-	shopify_order_items: List["LineItem"], shopify_settings: "ShopifySettings"
-):
+def get_order_items(shopify_order_items: list["LineItem"], shopify_settings: "ShopifySettings"):
 	items = []
 	for shopify_item in shopify_order_items:
 		items.append(get_order_item(shopify_item, shopify_settings))
@@ -204,11 +187,8 @@ def get_order_item(shopify_item: "LineItem", shopify_settings: "ShopifySettings"
 	from shopify_integration.products import get_item_code
 
 	item_code = get_item_code(shopify_item)
-	item_name = shopify_item.attributes.get("name", str())[:140]
-	item_group = (
-		frappe.db.get_value("Item", item_code, "item_group")
-		or shopify_settings.item_group
-	)
+	item_name = shopify_item.attributes.get("name", "")[:140]
+	item_group = frappe.db.get_value("Item", item_code, "item_group") or shopify_settings.item_group
 
 	stock_uom = shopify_item.attributes.get("uom") or frappe.db.get_single_value(
 		"Stock Settings", "stock_uom"
@@ -217,8 +197,7 @@ def get_order_item(shopify_item: "LineItem", shopify_settings: "ShopifySettings"
 	# TODO: both quantity and fulfillable_quantity don't denote actual ordered quantity
 	# figure out a way to get the actual ordered quantity (including edits)
 	qty = flt(
-		shopify_item.attributes.get("fulfillable_quantity")
-		or shopify_item.attributes.get("quantity")
+		shopify_item.attributes.get("fulfillable_quantity") or shopify_item.attributes.get("quantity")
 	)
 
 	return {
@@ -270,9 +249,7 @@ def get_order_taxes(shopify_order: "Order", shopify_settings: "ShopifySettings")
 				"description": tax_description,
 				"tax_amount": flt(tax.attributes.get("price")),
 				"cost_center": shopify_settings.cost_center,
-				"included_in_print_rate": shopify_order.attributes.get(
-					"taxes_included"
-				),
+				"included_in_print_rate": shopify_order.attributes.get("taxes_included"),
 			}
 		)
 
@@ -281,21 +258,15 @@ def get_order_taxes(shopify_order: "Order", shopify_settings: "ShopifySettings")
 	# just add a tax line for the difference; since shipping lines are not
 	# considered as a "tax" in Shopify. we'll remove them from the total taxes
 	erpnext_order_taxes = sum(
-		tax.get("tax_amount")
-		for tax in taxes
-		if tax.get("description") not in shipping_descriptions
+		tax.get("tax_amount") for tax in taxes if tax.get("description") not in shipping_descriptions
 	)
 
 	# calculate the difference between the Shopify taxes with the total taxes in the
 	# ERPNext sales order without the shipping lines
 	shopify_order_taxes = flt(shopify_order.attributes.get("current_total_tax"))
-	currency_precision = flt(
-		frappe.db.get_single_value("System Settings", "currency_precision")
-	)
+	currency_precision = flt(frappe.db.get_single_value("System Settings", "currency_precision"))
 
-	difference = flt(
-		shopify_order_taxes - erpnext_order_taxes, precision=currency_precision or 2
-	)
+	difference = flt(shopify_order_taxes - erpnext_order_taxes, precision=currency_precision or 2)
 
 	if difference:
 		taxes.append(
@@ -311,7 +282,7 @@ def get_order_taxes(shopify_order: "Order", shopify_settings: "ShopifySettings")
 	return taxes
 
 
-def cancel_shopify_order(shop_name: str, order_id: str, log_id: str = str()):
+def cancel_shopify_order(shop_name: str, order_id: str, log_id: str = ""):
 	"""
 	Cancel all sales documents if a Shopify order is cancelled.
 

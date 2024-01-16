@@ -1,20 +1,21 @@
 name: Tests
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - main-v15
+  pull_request:
 
 concurrency:
-  group: develop-shopify_integration-${{ github.event.number }}
+  group: main-v15-shopify_integration-${{ github.event.number }}
   cancel-in-progress: true
 
 jobs:
   tests:
     name: Server
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     timeout-minutes: 60
     strategy:
-      matrix:
-        os: [ubuntu-latest]
-        python: ['3.8', '3.10']
       fail-fast: false
 
     services:
@@ -28,16 +29,16 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Setup Python ${{ matrix.python }}
-        uses: actions/setup-python@v4
+      - name: Setup Python 3.10
+        uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python }}
+          python-version: '3.10'
 
       # Instead of using setup-python's caching, separarely cache the python environment
       # https://github.com/actions/setup-python/issues/330#issuecomment-1416883170
-      - name: Cache Python ${{ matrix.python }}
+      - name: Cache Python 3.10
         uses: actions/cache@v3
         with:
           path: ${{ env.pythonLocation }}

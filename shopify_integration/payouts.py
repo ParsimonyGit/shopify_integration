@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright (c) 2021, Parsimony, LLC and contributors
 # For license information, please see license.txt
 
@@ -16,15 +15,14 @@ from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log imp
 from shopify_integration.utils import get_shopify_document
 
 if TYPE_CHECKING:
+	from erpnext.selling.doctype.sales_order.sales_order import SalesOrder
 	from shopify import Order, Payouts, Transactions
 
-	from erpnext.selling.doctype.sales_order.sales_order import SalesOrder
-
-	from shopify_integration.shopify_integration.doctype.shopify_settings.shopify_settings import (
-		ShopifySettings,
-	)
 	from shopify_integration.shopify_integration.doctype.shopify_payout.shopify_payout import (
 		ShopifyPayout,
+	)
+	from shopify_integration.shopify_integration.doctype.shopify_settings.shopify_settings import (
+		ShopifySettings,
 	)
 
 
@@ -38,22 +36,22 @@ def sync_all_payouts():
 		shop_doc.sync_payouts()
 
 
-def create_shopify_payouts(shop_name: str, start_date: str = str()):
+def create_shopify_payouts(shop_name: str, start_date: str = ""):
 	"""
 	Pull the latest payouts from Shopify and do the following:
 
 	- Create missing Sales Orders, Sales Invoices and Delivery Notes,
-		if enabled in Shopify Settings
+	        if enabled in Shopify Settings
 	- Create a Shopify Payout document with info on all transactions
 	- Update any invoices with fees accrued for each payout transaction
 
 	Args:
-		shop_name (str): The name of the Shopify configuration for the store.
-		start_date (str, optional): The date to start pulling payouts from.
+	        shop_name (str): The name of the Shopify configuration for the store.
+	        start_date (str, optional): The date to start pulling payouts from.
 	"""
 
 	shopify_settings: "ShopifySettings" = frappe.get_doc("Shopify Settings", shop_name)
-	payouts: List["Payouts"] = get_payouts(shopify_settings, start_date)
+	payouts: list["Payouts"] = get_payouts(shopify_settings, start_date)
 	if not payouts:
 		return
 
@@ -75,14 +73,14 @@ def create_shopify_payouts(shop_name: str, start_date: str = str()):
 
 def create_shopify_payout(shop_name: str, payout_id: str):
 	shopify_settings: "ShopifySettings" = frappe.get_doc("Shopify Settings", shop_name)
-	payouts: List["Payouts"] = shopify_settings.get_payouts(payout_id)
+	payouts: list["Payouts"] = shopify_settings.get_payouts(payout_id)
 	payout = payouts[0]
 
 	payout_order_ids = []
 	try:
-		payout_transactions: List[
-			"Transactions"
-		] = shopify_settings.get_payout_transactions(payout_id=payout_id)
+		payout_transactions: list["Transactions"] = shopify_settings.get_payout_transactions(
+			payout_id=payout_id
+		)
 	except Exception as e:
 		make_shopify_log(
 			shop_name=shop_name,
@@ -102,16 +100,16 @@ def create_shopify_payout(shop_name: str, payout_id: str):
 	payout_doc.update_invoice_fees()
 
 
-def get_payouts(shopify_settings: "ShopifySettings", start_date: str = str()):
+def get_payouts(shopify_settings: "ShopifySettings", start_date: str = ""):
 	"""
 	Request Shopify API for the latest payouts
 
 	Args:
-		shopify_settings (ShopifySettings): The Shopify configuration for the store.
-		start_date (str, optional): The date to start pulling payouts from.
+	        shopify_settings (ShopifySettings): The Shopify configuration for the store.
+	        start_date (str, optional): The date to start pulling payouts from.
 
 	Returns:
-		list of shopify.Payout: The list of Shopify payouts, if any.
+	        list of shopify.Payout: The list of Shopify payouts, if any.
 	"""
 
 	kwargs = {}
@@ -127,25 +125,20 @@ def get_payouts(shopify_settings: "ShopifySettings", start_date: str = str()):
 		payouts = shopify_settings.get_payouts(**kwargs)
 	except Exception as e:
 		make_shopify_log(
-			shop_name=shopify_settings.name,
-			status="Payout Error",
-			exception=e,
-			rollback=True
+			shop_name=shopify_settings.name, status="Payout Error", exception=e, rollback=True
 		)
 		return []
 	else:
 		return payouts
 
 
-def create_missing_orders(
-	shopify_settings: "ShopifySettings", shopify_order_ids: List[str]
-):
+def create_missing_orders(shopify_settings: "ShopifySettings", shopify_order_ids: list[str]):
 	"""
 	Create missing Sales Orders, Sales Invoices and Delivery Notes, if enabled in Shopify Settings.
 
 	Args:
-		shopify_settings (ShopifySettings): The Shopify configuration for the store.
-		shopify_order_ids (list of str): The Shopify order IDs to create documents against.
+	        shopify_settings (ShopifySettings): The Shopify configuration for the store.
+	        shopify_order_ids (list of str): The Shopify order IDs to create documents against.
 	"""
 
 	for shopify_order_id in shopify_order_ids:
@@ -168,7 +161,7 @@ def create_missing_orders(
 		if all([sales_order, sales_invoice, delivery_note]):
 			continue
 
-		orders: List["Order"] = shopify_settings.get_orders(shopify_order_id)
+		orders: list["Order"] = shopify_settings.get_orders(shopify_order_id)
 		if not orders:
 			continue
 
@@ -192,11 +185,11 @@ def _create_shopify_payout(shopify_settings: "ShopifySettings", payout: "Payouts
 	Create a Shopify Payout document from Shopify's Payout information.
 
 	Args:
-		shopify_settings (ShopifySettings): The Shopify configuration for the store.
-		payout (Payouts): The Payout payload from Shopify.
+	        shopify_settings (ShopifySettings): The Shopify configuration for the store.
+	        payout (Payouts): The Payout payload from Shopify.
 
 	Returns:
-		ShopifyPayout: The created Shopify Payout document.
+	        ShopifyPayout: The created Shopify Payout document.
 	"""
 
 	payout_doc: "ShopifyPayout" = frappe.new_doc("Shopify Payout")
@@ -214,9 +207,9 @@ def _create_shopify_payout(shopify_settings: "ShopifySettings", payout: "Payouts
 	)
 
 	try:
-		payout_transactions: List[
-			"Transactions"
-		] = shopify_settings.get_payout_transactions(payout_id=payout.id)
+		payout_transactions: list["Transactions"] = shopify_settings.get_payout_transactions(
+			payout_id=payout.id
+		)
 	except Exception as e:
 		payout_doc.save(ignore_permissions=True)
 		make_shopify_log(
@@ -233,9 +226,7 @@ def _create_shopify_payout(shopify_settings: "ShopifySettings", payout: "Payouts
 
 		order_financial_status = sales_order = sales_invoice = delivery_note = None
 		if shopify_order_id:
-			orders = shopify_settings.get_orders(
-				shopify_order_id, fields="financial_status"
-			)
+			orders = shopify_settings.get_orders(shopify_order_id, fields="financial_status")
 			if not orders:
 				continue
 			order = orders[0]
@@ -258,15 +249,9 @@ def _create_shopify_payout(shopify_settings: "ShopifySettings", payout: "Payouts
 			)
 
 		total_amount = (
-			-flt(transaction.amount)
-			if transaction.type == "payout"
-			else flt(transaction.amount)
+			-flt(transaction.amount) if transaction.type == "payout" else flt(transaction.amount)
 		)
-		net_amount = (
-			-flt(transaction.net)
-			if transaction.type == "payout"
-			else flt(transaction.net)
-		)
+		net_amount = -flt(transaction.net) if transaction.type == "payout" else flt(transaction.net)
 
 		payout_doc.append(
 			"transactions",

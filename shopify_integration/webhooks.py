@@ -10,9 +10,8 @@ from frappe.utils import get_url
 
 if TYPE_CHECKING:
 	from frappe.integrations.doctype.connected_app.connected_app import ConnectedApp
-	from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log import (
-		ShopifyLog,
-	)
+
+	from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log import ShopifyLog
 	from shopify_integration.shopify_integration.doctype.shopify_settings.shopify_settings import (
 		ShopifySettings,
 	)
@@ -45,7 +44,7 @@ def store_request_data():
 		hmac_key="X-Shopify-Hmac-SHA256",
 	)
 
-	data: Dict = json.loads(frappe.request.data)
+	data: dict = json.loads(frappe.request.data)
 	enqueue_webhook_event(shop_name, data, event)
 
 
@@ -57,9 +56,7 @@ def validate_webhooks_request(shop: "ShopifySettings", hmac_key: str):
 	if shop.app_type == "Custom":
 		key = shop.shared_secret.encode("utf8")
 	elif shop.app_type in ("Custom (OAuth)", "Public"):
-		connected_app: "ConnectedApp" = frappe.get_doc(
-			"Connected App", shop.connected_app
-		)
+		connected_app: "ConnectedApp" = frappe.get_doc("Connected App", shop.connected_app)
 		key = connected_app.get_password("client_secret").encode("utf8")
 
 	if not key:
@@ -77,7 +74,7 @@ def validate_webhooks_request(shop: "ShopifySettings", hmac_key: str):
 		frappe.throw(_("Unverified Shopify Webhook data"))
 
 
-def enqueue_webhook_event(shop_name: str, data: Dict, event: str = "orders/create"):
+def enqueue_webhook_event(shop_name: str, data: dict, event: str = "orders/create"):
 	frappe.set_user("Administrator")
 	log = create_shopify_log(shop_name, data, event)
 
@@ -102,7 +99,7 @@ def enqueue_webhook_event(shop_name: str, data: Dict, event: str = "orders/creat
 	)
 
 
-def create_shopify_log(shop_name: str, data: Dict, event: str = "orders/create"):
+def create_shopify_log(shop_name: str, data: dict, event: str = "orders/create"):
 	log: "ShopifyLog" = frappe.get_doc(
 		{
 			"doctype": "Shopify Log",
@@ -115,8 +112,8 @@ def create_shopify_log(shop_name: str, data: Dict, event: str = "orders/create")
 	return log
 
 
-def get_shop_for_webhook() -> Optional[str]:
-	active_shops: List["ShopifySettings"] = frappe.get_all(
+def get_shop_for_webhook() -> str | None:
+	active_shops: list["ShopifySettings"] = frappe.get_all(
 		"Shopify Settings",
 		filters={"enable_shopify": True},
 		fields=["name", "shopify_url"],

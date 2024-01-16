@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright (c) 2021, Parsimony LLC and Contributors
 # See license.txt
 
@@ -6,6 +5,11 @@ import json
 import os
 import secrets
 
+import frappe
+from frappe.core.doctype.data_import.data_import import import_doc
+from frappe.test_runner import make_test_objects
+from frappe.tests.utils import FrappeTestCase
+from frappe.utils import cstr
 from shopify import (
 	Address,
 	Customer,
@@ -17,12 +21,6 @@ from shopify import (
 	Product,
 	ShippingLine,
 )
-
-import frappe
-from frappe.core.doctype.data_import.data_import import import_doc
-from frappe.test_runner import make_test_objects
-from frappe.tests.utils import FrappeTestCase
-from frappe.utils import cstr
 
 from shopify_integration.customers import create_customer
 from shopify_integration.fulfilments import create_shopify_delivery
@@ -40,9 +38,7 @@ class ShopifySettings(FrappeTestCase):
 
 		if not frappe.db.get_value("Customer", "_Test Customer 1"):
 			with open(
-				frappe.get_app_path(
-					"erpnext", "selling/doctype/customer/test_records.json"
-				)
+				frappe.get_app_path("erpnext", "selling/doctype/customer/test_records.json")
 			) as customer:
 				customer_data = json.load(customer)
 				make_test_objects("Customer", customer_data)
@@ -68,9 +64,7 @@ class ShopifySettings(FrappeTestCase):
 
 		# create customer
 		with open(
-			os.path.join(
-				os.path.dirname(__file__), "test_data", "shopify_customer.json"
-			)
+			os.path.join(os.path.dirname(__file__), "test_data", "shopify_customer.json")
 		) as shopify_customer:
 			customer = Customer()
 			customer_data = json.load(shopify_customer)
@@ -102,9 +96,7 @@ class ShopifySettings(FrappeTestCase):
 			create_shopify_delivery(shopify_settings.name, order, sales_order)
 
 		# verify sales order IDs
-		sales_order = get_shopify_document(
-			shopify_settings.name, "Sales Order", order_id=order.id
-		)
+		sales_order = get_shopify_document(shopify_settings.name, "Sales Order", order_id=order.id)
 		self.assertEqual(cstr(order.id), sales_order.shopify_order_id)
 
 		# verify customer IDs
