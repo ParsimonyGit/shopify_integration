@@ -1,6 +1,4 @@
-/* global frappe, __ */
-
-frappe.listview_settings['Shopify Log'] = {
+frappe.listview_settings["Shopify Log"] = {
 	add_fields: ["status"],
 	get_indicator: function (doc) {
 		if (doc.status === "Success") {
@@ -10,5 +8,5 @@ frappe.listview_settings['Shopify Log'] = {
 		} else if (doc.status === "Queued") {
 			return [__("Queued"), "orange", "status,=,Queued"];
 		}
-	}
-}
+	},
+};

@@ -6,7 +6,9 @@ from frappe.utils import cstr, validate_phone_number
 
 if TYPE_CHECKING:
 	from erpnext.selling.doctype.customer.customer import Customer
-	from shopify import Address, Customer as ShopifyCustomer, Order
+	from shopify import Address
+	from shopify import Customer as ShopifyCustomer
+	from shopify import Order
 
 
 def validate_customer(shop_name: str, shopify_order: "Order"):
@@ -34,9 +36,7 @@ def create_customer(shop_name: str, shopify_customer: "ShopifyCustomer"):
 				"name": shopify_customer.id,
 				"customer_name": cust_name,
 				"shopify_customer_id": shopify_customer.id,
-				"customer_group": frappe.db.get_value(
-					"Shopify Settings", shop_name, "customer_group"
-				),
+				"customer_group": frappe.db.get_value("Shopify Settings", shop_name, "customer_group"),
 				"territory": get_root_of("Territory"),
 				"customer_type": _("Individual"),
 				"exempt_from_sales_tax": shopify_customer.attributes.get("tax_exempt"),
@@ -93,9 +93,7 @@ def create_customer_contact(customer: "Customer", shopify_customer: "ShopifyCust
 	}
 
 	if shopify_customer.attributes.get("email"):
-		data["email_ids"] = [
-			{"email_id": shopify_customer.attributes.get("email"), "is_primary": True}
-		]
+		data["email_ids"] = [{"email_id": shopify_customer.attributes.get("email"), "is_primary": True}]
 
 	phone_no = shopify_customer.attributes.get("phone")
 	if not phone_no:

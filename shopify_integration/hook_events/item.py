@@ -1,12 +1,9 @@
-from typing import Union
-
-from shopify import LineItem, Product, Variant
-
 import frappe
 from frappe.utils import cstr
+from shopify import LineItem, Product, Variant
 
 
-def get_item_alias(shopify_item: Union[LineItem, Product, Variant]):
+def get_item_alias(shopify_item: LineItem | Product | Variant):
 	# ref: https://github.com/ParsimonyGit/parsimony/
 	# check if the Parsimony app is installed on the current site;
 	# `frappe.db.table_exists` returns a false positive if any other

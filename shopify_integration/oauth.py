@@ -1,17 +1,17 @@
 import binascii
 import json
 import os
-from typing import TYPE_CHECKING, Dict, List, Optional, Union
-
-from shopify.session import Session as ShopifySession
-from shopify.utils.shop_url import sanitize_shop_domain
+from typing import TYPE_CHECKING, Optional, Union
 
 import frappe
 from frappe import _
+from shopify.session import Session as ShopifySession
+from shopify.utils.shop_url import sanitize_shop_domain
 
 if TYPE_CHECKING:
 	from frappe.integrations.doctype.connected_app.connected_app import ConnectedApp
 	from frappe.integrations.doctype.token_cache.token_cache import TokenCache
+
 	from shopify_integration.shopify_integration.doctype.shopify_settings.shopify_settings import (
 		ShopifySettings,
 	)
@@ -26,7 +26,7 @@ def install_custom_app(*args, **kwargs):
 	if not shop_url:
 		frappe.throw(_("Invalid shop URL"))
 
-	shops: List["ShopifySettings"] = frappe.get_all(
+	shops: list["ShopifySettings"] = frappe.get_all(
 		"Shopify Settings",
 		filters={
 			"enable_shopify": True,
@@ -53,14 +53,10 @@ def initiate_web_application_flow(settings: Union["ShopifySettings", str]):
 	"""Return an authorization URL for the user, and save the state in Token Cache."""
 
 	if isinstance(settings, str):
-		settings: Dict = json.loads(settings)
+		settings: dict = json.loads(settings)
 
-	shopify_settings: "ShopifySettings" = frappe.get_doc(
-		"Shopify Settings", settings.get("name")
-	)
-	connected_app: "ConnectedApp" = frappe.get_doc(
-		"Connected App", settings.get("connected_app")
-	)
+	shopify_settings: "ShopifySettings" = frappe.get_doc("Shopify Settings", settings.get("name"))
+	connected_app: "ConnectedApp" = frappe.get_doc("Connected App", settings.get("connected_app"))
 
 	ShopifySession.setup(
 		api_key=connected_app.client_id,
@@ -68,9 +64,7 @@ def initiate_web_application_flow(settings: Union["ShopifySettings", str]):
 	)
 
 	state = binascii.b2a_hex(os.urandom(15)).decode("utf-8")
-	shopify_session = ShopifySession(
-		shopify_settings.shopify_url, shopify_settings.api_version
-	)
+	shopify_session = ShopifySession(shopify_settings.shopify_url, shopify_settings.api_version)
 	auth_url = shopify_session.create_permission_url(
 		connected_app.get_scopes(), connected_app.redirect_uri, state
 	)
@@ -117,9 +111,7 @@ def callback(*args, **kwargs):
 	shopify_settings.register_webhooks()
 
 	frappe.local.response["type"] = "redirect"
-	frappe.local.response["location"] = (
-		token_cache.get("success_uri") or connected_app.get_url()
-	)
+	frappe.local.response["location"] = token_cache.get("success_uri") or connected_app.get_url()
 
 
 def validate_request(*args, **kwargs):
@@ -161,7 +153,7 @@ def get_oauth_details(*args, **kwargs):
 
 
 def get_shopify_settings(connected_app: "ConnectedApp") -> Optional["ShopifySettings"]:
-	shopify_settings: List["ShopifySettings"] = frappe.get_all(
+	shopify_settings: list["ShopifySettings"] = frappe.get_all(
 		"Shopify Settings",
 		filters={
 			"enable_shopify": True,

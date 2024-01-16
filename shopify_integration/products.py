@@ -1,10 +1,9 @@
 from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
-from shopify import Product, Variant
-
 import frappe
 from frappe import _
 from frappe.utils import cint, cstr
+from shopify import Product, Variant
 
 from shopify_integration.hook_events.item import get_item_alias
 from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log import (
@@ -12,10 +11,9 @@ from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log imp
 )
 
 if TYPE_CHECKING:
-	from shopify import LineItem, Option, Order
-
 	from erpnext.stock.doctype.item.item import Item
 	from erpnext.stock.doctype.item_attribute.item_attribute import ItemAttribute
+	from shopify import LineItem, Option, Order
 
 	from shopify_integration.shopify_integration.doctype.shopify_settings.shopify_settings import (
 		ShopifySettings,
@@ -83,10 +81,8 @@ def validate_items(shop_name: str, shopify_order: "Order"):
 		shopify_item: "LineItem"
 
 		product_id = shopify_item.attributes.get("product_id")
-		if product_id and not frappe.db.exists(
-			"Item", {"shopify_product_id": product_id}
-		):
-			shopify_products: List[Product] = shopify_settings.get_products(product_id)
+		if product_id and not frappe.db.exists("Item", {"shopify_product_id": product_id}):
+			shopify_products: list[Product] = shopify_settings.get_products(product_id)
 			for product in shopify_products:
 				if has_variants(product):
 					if shopify_settings.create_variant_items:
@@ -98,10 +94,8 @@ def validate_items(shop_name: str, shopify_order: "Order"):
 
 		# create the child variant item if it does not exist
 		variant_id = shopify_item.attributes.get("variant_id")
-		if variant_id and not frappe.db.exists(
-			"Item", {"shopify_variant_id": variant_id}
-		):
-			shopify_variants: List[Variant] = shopify_settings.get_variants(variant_id)
+		if variant_id and not frappe.db.exists("Item", {"shopify_variant_id": variant_id}):
+			shopify_variants: list[Variant] = shopify_settings.get_variants(variant_id)
 			for variant in shopify_variants:
 				make_item(shopify_settings, variant)
 
@@ -109,10 +103,8 @@ def validate_items(shop_name: str, shopify_order: "Order"):
 		# for such cases, we create the item using the line item"s title
 		if not (product_id or variant_id):
 			line_item_title = shopify_item.attributes.get("title", "").strip()
-			if line_item_title and not frappe.db.exists(
-				"Item", {"item_code": line_item_title}
-			):
-				shopify_products: List[Product] = shopify_settings.get_products(
+			if line_item_title and not frappe.db.exists("Item", {"item_code": line_item_title}):
+				shopify_products: list[Product] = shopify_settings.get_products(
 					title=shopify_item.attributes.get("title")
 				)
 
@@ -124,13 +116,11 @@ def validate_items(shop_name: str, shopify_order: "Order"):
 					make_item(shopify_settings, product)
 
 
-def get_item_code(shopify_item: "LineItem") -> Optional[str]:
+def get_item_code(shopify_item: "LineItem") -> str | None:
 	item_code = get_item_alias(shopify_item)
 
 	if not item_code:
-		item_code = frappe.db.get_value(
-			"Item", shopify_item.attributes.get("sku"), "item_code"
-		)
+		item_code = frappe.db.get_value("Item", shopify_item.attributes.get("sku"), "item_code")
 
 	if not item_code:
 		item_code = frappe.db.get_value(
@@ -161,9 +151,7 @@ def get_item_code(shopify_item: "LineItem") -> Optional[str]:
 	return item_code
 
 
-def make_item(
-	shopify_settings: "ShopifySettings", shopify_item: Union[Product, Variant]
-):
+def make_item(shopify_settings: "ShopifySettings", shopify_item: Product | Variant):
 	if shopify_settings.create_variant_items:
 		attributes = []
 		if isinstance(shopify_item, Product):
@@ -208,7 +196,7 @@ def make_item_by_title(shopify_settings: "ShopifySettings", line_item_title: str
 	frappe.get_doc(item_data).insert(ignore_permissions=True)
 
 
-def create_product_attributes(shopify_item: Product) -> List[Dict]:
+def create_product_attributes(shopify_item: Product) -> list[dict]:
 	if not has_variants(shopify_item):
 		return []
 
@@ -227,9 +215,7 @@ def create_product_attributes(shopify_item: Product) -> List[Dict]:
 			item_attributes.append({"attribute": attribute_option_name})
 		else:
 			# check for attribute values
-			item_attr: "ItemAttribute" = frappe.get_doc(
-				"Item Attribute", attribute_option_name
-			)
+			item_attr: "ItemAttribute" = frappe.get_doc("Item Attribute", attribute_option_name)
 			if not item_attr.numeric_values:
 				update_item_attribute_values(item_attr, attribute_option_values)
 				item_attr.save()
@@ -261,7 +247,7 @@ def has_variants(product: Product):
 	return False
 
 
-def update_item_attribute_values(item_attr: "ItemAttribute", values: List[str]):
+def update_item_attribute_values(item_attr: "ItemAttribute", values: list[str]):
 	if item_attr.is_new():
 		existing_attribute_values = []
 	else:
@@ -279,9 +265,9 @@ def update_item_attribute_values(item_attr: "ItemAttribute", values: List[str]):
 
 def sync_item(
 	shopify_settings: "ShopifySettings",
-	shopify_item: Union[Product, Variant],
-	attributes: List[Dict] = None,
-	variant_of: str = str(),
+	shopify_item: Product | Variant,
+	attributes: list[dict] = None,
+	variant_of: str = "",
 	update: bool = False,
 ):
 	"""
@@ -319,9 +305,7 @@ def sync_item(
 	item_alias = get_item_alias(shopify_item)
 	item_code = cstr(item_alias or shopify_sku or variant_id or product_id or item_name)
 	item_description = shopify_item.attributes.get("body_html")
-	item_has_variants = (
-		has_variants(shopify_item) if shopify_settings.create_variant_items else False
-	)
+	item_has_variants = has_variants(shopify_item) if shopify_settings.create_variant_items else False
 
 	item_data = {
 		"shopify_product_id": cstr(product_id),
@@ -336,9 +320,7 @@ def sync_item(
 		"description": item_description,
 		"shopify_description": item_description,
 		"item_group": shopify_settings.item_group,
-		"marketplace_item_group": get_item_group(
-			shopify_item.attributes.get("product_type")
-		),
+		"marketplace_item_group": get_item_group(shopify_item.attributes.get("product_type")),
 		"has_variants": item_has_variants,
 		"stock_uom": WEIGHT_UOM_MAP.get(shopify_item.attributes.get("uom"))
 		or frappe.db.get_single_value("Stock Settings", "stock_uom"),
@@ -371,14 +353,10 @@ def sync_item(
 				attributes,
 			)
 	else:
-		new_item_code = create_item(
-			shopify_settings, shopify_item, item_data, attributes
-		)
+		new_item_code = create_item(shopify_settings, shopify_item, item_data, attributes)
 
 	if (
-		new_item_code
-		and not item_has_variants
-		and shopify_settings.update_price_in_erpnext_price_list
+		new_item_code and not item_has_variants and shopify_settings.update_price_in_erpnext_price_list
 	):
 		add_to_price_list(shopify_settings, shopify_item, new_item_code)
 
@@ -387,10 +365,10 @@ def sync_item(
 
 def update_item(
 	shopify_settings: "ShopifySettings",
-	shopify_item: Union[Product, Variant],
+	shopify_item: Product | Variant,
 	item_code: str,
-	item_data: Dict,
-	attributes: List[Dict],
+	item_data: dict,
+	attributes: list[dict],
 ):
 	existing_item_doc: "Item" = frappe.get_doc("Item", item_code)
 	existing_item_doc.update(item_data)
@@ -398,9 +376,7 @@ def update_item(
 	# update item attributes for existing items without transactions;
 	# if an item has transactions, its attributes cannot be changed
 	if not existing_item_doc.stock_ledger_created():
-		existing_attributes = [
-			attribute.attribute for attribute in existing_item_doc.attributes
-		]
+		existing_attributes = [attribute.attribute for attribute in existing_item_doc.attributes]
 
 		if attributes:
 			for attribute in attributes:
@@ -422,9 +398,9 @@ def update_item(
 
 def create_item(
 	shopify_settings: "ShopifySettings",
-	shopify_item: Union[Product, Variant],
-	item_data: Dict,
-	attributes: List[Dict],
+	shopify_item: Product | Variant,
+	item_data: dict,
+	attributes: list[dict],
 ):
 	new_item: "Item" = frappe.new_doc("Item")
 	new_item.update(item_data)
@@ -456,8 +432,8 @@ def create_item(
 
 def sync_item_variants(
 	shopify_settings: "ShopifySettings",
-	shopify_item: Union[Product, Variant],
-	attributes: List[Dict],
+	shopify_item: Product | Variant,
+	attributes: list[dict],
 ):
 	product_id = None
 	if isinstance(shopify_item, Product):
@@ -498,7 +474,7 @@ def sync_item_variants(
 			)
 
 
-def get_attribute_value(variant_attr_val: str, attribute: Dict = None):
+def get_attribute_value(variant_attr_val: str, attribute: dict = None):
 	if not attribute or not attribute.get("attribute"):
 		return cint(variant_attr_val)
 
@@ -515,7 +491,7 @@ def get_attribute_value(variant_attr_val: str, attribute: Dict = None):
 	return attribute_values[0]
 
 
-def get_item_group(product_type: str = str()):
+def get_item_group(product_type: str = ""):
 	from frappe.utils.nestedset import get_root_of
 
 	parent_item_group = get_root_of("Item Group")
@@ -536,7 +512,7 @@ def get_item_group(product_type: str = str()):
 
 def add_to_price_list(
 	shopify_settings: "ShopifySettings",
-	shopify_item: Union[Product, Variant],
+	shopify_item: Product | Variant,
 	item_code: str,
 ):
 	rate = 0
@@ -565,9 +541,7 @@ def add_to_price_list(
 		item_rate.insert()
 
 
-def get_item_image(
-	shopify_settings: "ShopifySettings", shopify_item: Union[Product, Variant]
-):
+def get_item_image(shopify_settings: "ShopifySettings", shopify_item: Product | Variant):
 	image_url = None
 	products = []
 
@@ -588,16 +562,14 @@ def get_item_image(
 	return image_url
 
 
-def get_supplier(
-	shopify_settings: "ShopifySettings", shopify_item: Union[Product, Variant]
-):
-	supplier = vendor = str()
+def get_supplier(shopify_settings: "ShopifySettings", shopify_item: Product | Variant):
+	supplier = vendor = ""
 
 	# only Shopify products are assigned vendors
 	if isinstance(shopify_item, Product):
 		products = [shopify_item]
 	elif isinstance(shopify_item, Variant):
-		products: List[Product] = shopify_settings.get_products(
+		products: list[Product] = shopify_settings.get_products(
 			shopify_item.attributes.get("product_id"), fields="vendor"
 		)
 

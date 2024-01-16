@@ -6,25 +6,28 @@ from erpnext.selling.doctype.sales_order.sales_order import make_sales_invoice
 from frappe.utils import cint, flt, get_datetime, getdate
 
 from shopify_integration.orders import get_shopify_order
-from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log import make_shopify_log
+from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log import (
+	make_shopify_log,
+)
 from shopify_integration.utils import get_shopify_document, get_tax_account_head
 
 if TYPE_CHECKING:
 	from erpnext.accounts.doctype.sales_invoice.sales_invoice import SalesInvoice
 	from erpnext.selling.doctype.sales_order.sales_order import SalesOrder
 	from shopify import Order
-	from shopify_integration.shopify_integration.doctype.shopify_settings.shopify_settings import ShopifySettings
+
+	from shopify_integration.shopify_integration.doctype.shopify_settings.shopify_settings import (
+		ShopifySettings,
+	)
 
 
-def prepare_sales_invoice(shop_name: str, order_id: str, log_id: str = str()):
+def prepare_sales_invoice(shop_name: str, order_id: str, log_id: str = ""):
 	"""
 	Webhook endpoint to process invoices for Shopify orders.
 
-	Args:
-		shop_name (str): The name of the Shopify configuration for the store.
-		order_id (Order): The Shopify order ID.
-		log_id (str, optional): The ID of an existing Shopify Log.
-			Defaults to an empty string.
+	:param shop_name: The name of the Shopify configuration for the store.
+	:param order_id: The Shopify order ID.
+	:param log_id (optional): The ID of an existing Shopify Log. Defaults to an empty string.
 	"""
 
 	from shopify_integration.orders import create_shopify_documents
@@ -49,31 +52,30 @@ def prepare_sales_invoice(shop_name: str, order_id: str, log_id: str = str()):
 		else:
 			make_shopify_log(shop_name, status="Skipped", response_data=order.to_dict())
 	except Exception as e:
-		make_shopify_log(shop_name, status="Error", response_data=order.to_dict(), exception=e, rollback=True)
+		make_shopify_log(
+			shop_name, status="Error", response_data=order.to_dict(), exception=e, rollback=True
+		)
 
 
 def create_shopify_invoice(
-	shop_name: str,
-	shopify_order: "Order",
-	sales_order: "SalesOrder",
-	log_id: str = str()
+	shop_name: str, shopify_order: "Order", sales_order: "SalesOrder", log_id: str = ""
 ):
 	"""
 	Create a Sales Invoice document for a Shopify order. If the Shopify order is refunded
 	and a submitted Sales Invoice exists, make a sales return against the invoice.
 
-	Args:
-		shop_name (str): The name of the Shopify configuration for the store.
-		shopify_order (Order): The Shopify order data.
-		sales_order (SalesOrder, optional): The reference Sales Order document for the
-			Shopify order. Defaults to None.
-		log_id (str, optional): The ID of an existing Shopify Log. Defaults to an empty string.
-
-	Returns:
-		SalesInvoice: The created Sales Invoice document, if any, otherwise None.
+	:param shop_name: The name of the Shopify configuration for the store.
+	:param shopify_order: The Shopify order data.
+	:param sales_order (optional): The reference Sales Order document for the Shopify order. Defaults to None.
+	:param log_id (optional): The ID of an existing Shopify Log. Defaults to an empty string.
+	:return: The created Sales Invoice document, if any, otherwise None.
 	"""
 
-	if not shopify_order.attributes.get("financial_status") in ["paid", "partially_refunded", "refunded"]:
+	if not shopify_order.attributes.get("financial_status") in [
+		"paid",
+		"partially_refunded",
+		"refunded",
+	]:
 		return
 
 	frappe.flags.log_id = log_id
@@ -84,7 +86,7 @@ def create_shopify_invoice(
 				shop_name=shop_name,
 				shopify_order_id=shopify_order.id,
 				shopify_financial_status=shopify_order.attributes.get("financial_status"),
-				sales_invoice=sales_invoice
+				sales_invoice=sales_invoice,
 			)
 	except Exception as e:
 		make_shopify_log(shop_name, status="Error", response_data=shopify_order.to_dict(), exception=e)
@@ -97,13 +99,10 @@ def create_sales_invoice(shop_name: str, shopify_order: "Order", sales_order: "S
 	"""
 	Helper function to create a Sales Invoice document for a Shopify order.
 
-	Args:
-		shop_name (str): The name of the Shopify configuration for the store.
-		shopify_order (Order): The Shopify order data.
-		sales_order (SalesOrder): The reference Sales Order document for the Shopify order.
-
-	Returns:
-		SalesInvoice: The created or existing Sales Invoice document, if any, otherwise None.
+	:param shop_name: The name of the Shopify configuration for the store.
+	:param shopify_order: The Shopify order data.
+	:param sales_order: The reference Sales Order document for the Shopify order.
+	:return: The created or existing Sales Invoice document, if any, otherwise None.
 	"""
 
 	shopify_settings: "ShopifySettings" = frappe.get_doc("Shopify Settings", shop_name)
@@ -113,28 +112,36 @@ def create_sales_invoice(shop_name: str, shopify_order: "Order", sales_order: "S
 	shopify_order_name = shopify_order.attributes.get("name")
 	shopify_order_name = shopify_order_name.split("#")[-1]
 
-	existing_invoice = get_shopify_document(shop_name=shop_name, doctype="Sales Invoice", order=shopify_order)
+	existing_invoice = get_shopify_document(
+		shop_name=shop_name, doctype="Sales Invoice", order=shopify_order
+	)
 	if existing_invoice:
 		existing_invoice: "SalesInvoice"
-		frappe.db.set_value("Sales Invoice", existing_invoice.name, {
-			"shopify_settings": shopify_settings.name,
-			"shopify_order_id": shopify_order.id,
-			"shopify_order_number": shopify_order.attributes.get("order_number"),
-			"shopify_order_name": shopify_order_name,
-		})
+		frappe.db.set_value(
+			"Sales Invoice",
+			existing_invoice.name,
+			{
+				"shopify_settings": shopify_settings.name,
+				"shopify_order_id": shopify_order.id,
+				"shopify_order_number": shopify_order.attributes.get("order_number"),
+				"shopify_order_name": shopify_order_name,
+			},
+		)
 		return existing_invoice
 
 	if sales_order.docstatus == 1 and not sales_order.per_billed:
 		sales_invoice: "SalesInvoice" = make_sales_invoice(sales_order.name, ignore_permissions=True)
-		sales_invoice.update({
-			"shopify_settings": shopify_settings.name,
-			"shopify_order_id": shopify_order.id,
-			"shopify_order_number": shopify_order.attributes.get("order_number"),
-			"shopify_order_name": shopify_order_name,
-			"set_posting_time": True,
-			"posting_date": getdate(shopify_order.attributes.get("created_at")),
-			"naming_series": shopify_settings.sales_invoice_series or "SI-Shopify-"
-		})
+		sales_invoice.update(
+			{
+				"shopify_settings": shopify_settings.name,
+				"shopify_order_id": shopify_order.id,
+				"shopify_order_number": shopify_order.attributes.get("order_number"),
+				"shopify_order_name": shopify_order_name,
+				"set_posting_time": True,
+				"posting_date": getdate(shopify_order.attributes.get("created_at")),
+				"naming_series": shopify_settings.sales_invoice_series or "SI-Shopify-",
+			}
+		)
 
 		for item in sales_invoice.items:
 			item.cost_center = shopify_settings.cost_center
@@ -150,28 +157,27 @@ def create_sales_return(
 	shop_name: str,
 	shopify_order_id: int,
 	shopify_financial_status: str,
-	sales_invoice: "SalesInvoice"
+	sales_invoice: "SalesInvoice",
 ):
 	"""
 	Create a Sales Invoice return for the given Shopify order.
 
-	Args:
-		shop_name (str): The name of the Shopify configuration for the store.
-		shopify_order_id (int): The Shopify order ID.
-		shopify_financial_status (str): The financial status of the Shopify order.
-			Should be one of: refunded, partially_refunded.
-		sales_invoice (SalesInvoice): The Sales Invoice document.
-
-	Returns:
-		SalesInvoice: The Sales Invoice return document.
-			If no refunds are found, returns None.
+	:param shop_name: The name of the Shopify configuration for the store.
+	:param shopify_order_id: The Shopify order ID.
+	:param shopify_financial_status: The financial status of the Shopify order.
+	Should be one of: refunded, partially_refunded.
+	:param sales_invoice: The Sales Invoice document.
+	:return: The Sales Invoice return document. If no refunds are found, returns None.
 	"""
 
 	shopify_settings: "ShopifySettings" = frappe.get_doc("Shopify Settings", shop_name)
 	refunds = shopify_settings.get_refunds(order_id=shopify_order_id)
 
-	refund_dates = [refund.processed_at or refund.created_at
-		for refund in refunds if refund.processed_at or refund.created_at]
+	refund_dates = [
+		refund.processed_at or refund.created_at
+		for refund in refunds
+		if refund.processed_at or refund.created_at
+	]
 
 	if not refund_dates:
 		return
@@ -187,10 +193,12 @@ def create_sales_return(
 
 	if shopify_financial_status == "partially_refunded":
 		for refund in refunds:
-			refunded_items = [item.line_item.product_id for item in refund.refund_line_items
-				if item.line_item.product_id]
-			refunded_variants = [item.line_item.variant_id for item in refund.refund_line_items
-				if item.line_item.variant_id]
+			refunded_items = [
+				item.line_item.product_id for item in refund.refund_line_items if item.line_item.product_id
+			]
+			refunded_variants = [
+				item.line_item.variant_id for item in refund.refund_line_items if item.line_item.variant_id
+			]
 
 			for item in return_invoice.items:
 				# for partial refunds, check each item for refunds
@@ -209,12 +217,15 @@ def create_sales_return(
 			return_invoice.set("taxes", [])
 			adjustments = refund.order_adjustments
 			for adjustment in adjustments:
-				return_invoice.append("taxes", {
-					"charge_type": "Actual",
-					"account_head": get_tax_account_head(shop_name, "refund"),
-					"description": adjustment.reason,
-					"tax_amount": flt(adjustment.amount)
-				})
+				return_invoice.append(
+					"taxes",
+					{
+						"charge_type": "Actual",
+						"account_head": get_tax_account_head(shop_name, "refund"),
+						"description": adjustment.reason,
+						"tax_amount": flt(adjustment.amount),
+					},
+				)
 
 	return_invoice.insert()
 	return_invoice.submit()

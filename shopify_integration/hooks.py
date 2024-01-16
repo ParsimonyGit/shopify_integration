@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
 from . import __version__ as app_version
 
 app_name = "shopify_integration"
@@ -93,11 +91,7 @@ doc_events = {
 # Scheduled Tasks
 # ---------------
 
-scheduler_events = {
-	"daily_long": [
-		"shopify_integration.payouts.sync_all_payouts"
-	]
-}
+scheduler_events = {"daily_long": ["shopify_integration.payouts.sync_all_payouts"]}
 
 # Testing
 # -------

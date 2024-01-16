@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright (c) 2021, Parsimony, LLC and contributors
 # For license information, please see license.txt
 
@@ -10,11 +9,15 @@ from frappe.model.document import Document
 from frappe.utils import cint, flt
 
 from shopify_integration.invoices import create_sales_return
-from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log import make_shopify_log
+from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log import (
+	make_shopify_log,
+)
 from shopify_integration.utils import get_accounting_entry, get_tax_account_head
 
 if TYPE_CHECKING:
-	from shopify_integration.shopify_integration.doctype.shopify_settings.shopify_settings import ShopifySettings
+	from shopify_integration.shopify_integration.doctype.shopify_settings.shopify_settings import (
+		ShopifySettings,
+	)
 
 
 class ShopifyPayout(Document):
@@ -22,11 +25,11 @@ class ShopifyPayout(Document):
 		"""
 		On submit of a Payout, do the following:
 
-			- If a Shopify Order is cancelled, update all linked documents in ERPNext
-			- If a Shopify Order has been fully or partially returned, make a
-				sales return in ERPNext
-			- Create a Journal Entry to balance all existing transactions
-				with additional fees and charges from Shopify, if any
+		        - If a Shopify Order is cancelled, update all linked documents in ERPNext
+		        - If a Shopify Order has been fully or partially returned, make a
+		                sales return in ERPNext
+		        - Create a Journal Entry to balance all existing transactions
+		                with additional fees and charges from Shopify, if any
 		"""
 
 		self.update_cancelled_shopify_orders()
@@ -52,13 +55,16 @@ class ShopifyPayout(Document):
 				if not transaction.fee:
 					continue
 
-				invoice.append("taxes", {
-					"charge_type": "Actual",
-					"account_head": get_tax_account_head(self.shop_name, "fee"),
-					"description": transaction.transaction_type,
-					"tax_amount": -flt(transaction.fee),
-					"cost_center": frappe.db.get_value("Shopify Settings", self.shop_name, "cost_center")
-				})
+				invoice.append(
+					"taxes",
+					{
+						"charge_type": "Actual",
+						"account_head": get_tax_account_head(self.shop_name, "fee"),
+						"description": transaction.transaction_type,
+						"tax_amount": -flt(transaction.fee),
+						"cost_center": frappe.db.get_value("Shopify Settings", self.shop_name, "cost_center"),
+					},
+				)
 
 			invoice.save()
 			invoice.submit()
@@ -71,9 +77,7 @@ class ShopifyPayout(Document):
 			if not transaction.source_order_id:
 				continue
 
-			shopify_orders = settings.get_orders(
-				cint(transaction.source_order_id), fields="cancelled_at"
-			)
+			shopify_orders = settings.get_orders(cint(transaction.source_order_id), fields="cancelled_at")
 
 			if not shopify_orders:
 				continue
@@ -111,8 +115,11 @@ class ShopifyPayout(Document):
 				transaction.db_set(doctype_field, None)
 
 	def create_sales_returns(self):
-		transactions = [transaction for transaction in self.transactions
-			if transaction.sales_invoice and transaction.source_order_id]
+		transactions = [
+			transaction
+			for transaction in self.transactions
+			if transaction.sales_invoice and transaction.source_order_id
+		]
 
 		if not transactions:
 			return
@@ -123,8 +130,9 @@ class ShopifyPayout(Document):
 			if financial_status not in ["refunded", "partially_refunded"]:
 				continue
 
-			is_invoice_returned = frappe.db.get_value("Sales Invoice", transaction.sales_invoice, "status") in \
-				["Return", "Credit Note Issued"]
+			is_invoice_returned = frappe.db.get_value(
+				"Sales Invoice", transaction.sales_invoice, "status"
+			) in ["Return", "Credit Note Issued"]
 
 			if not is_invoice_returned:
 				si_doc = frappe.get_doc("Sales Invoice", transaction.sales_invoice)
@@ -161,7 +169,7 @@ class ShopifyPayout(Document):
 						reference_type="Sales Invoice",
 						reference_name=invoice,
 						party_type="Customer",
-						party_name=party_name
+						party_name=party_name,
 					)
 
 					entries.append(entry)

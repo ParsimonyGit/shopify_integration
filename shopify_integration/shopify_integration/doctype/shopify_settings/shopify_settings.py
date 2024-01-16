@@ -1,51 +1,37 @@
-# -*- coding: utf-8 -*-
 # Copyright (c) 2021, Parsimony, LLC and contributors
 # For license information, please see license.txt
 
 from typing import TYPE_CHECKING, Optional, Type
-
-from shopify.collection import PaginatedCollection, PaginatedIterator
-from shopify.resources import (
-	Order,
-	Payouts,
-	Product,
-	Refund,
-	Transactions,
-	Variant,
-	Webhook,
-)
-from shopify.session import Session as ShopifySession
 
 import frappe
 from frappe import _
 from frappe.model.document import Document
 from frappe.model.naming import get_default_naming_series
 from frappe.utils import get_datetime_str, get_first_day, today
+from shopify.collection import PaginatedCollection, PaginatedIterator
+from shopify.resources import Order, Payouts, Product, Refund, Transactions, Variant, Webhook
+from shopify.session import Session as ShopifySession
 
 from shopify_integration.shopify_integration.doctype.shopify_log.shopify_log import (
 	make_shopify_log,
 )
 
 if TYPE_CHECKING:
-	from shopify.base import ShopifyResource
-
 	from frappe.integrations.doctype.connected_app.connected_app import ConnectedApp
 	from frappe.integrations.doctype.token_cache.token_cache import TokenCache
+	from shopify.base import ShopifyResource
 
 
 class ShopifySettings(Document):
-	api_version = "2022-07"
+	api_version = "2023-04"
 
 	@staticmethod
 	@frappe.whitelist()
 	def get_series():
 		return {
-			"sales_order_series": get_default_naming_series("Sales Order")
-			or "SO-Shopify-",
-			"sales_invoice_series": get_default_naming_series("Sales Invoice")
-			or "SI-Shopify-",
-			"delivery_note_series": get_default_naming_series("Delivery Note")
-			or "DN-Shopify-",
+			"sales_order_series": get_default_naming_series("Sales Order") or "SO-Shopify-",
+			"sales_invoice_series": get_default_naming_series("Sales Invoice") or "SI-Shopify-",
+			"delivery_note_series": get_default_naming_series("Delivery Note") or "DN-Shopify-",
 		}
 
 	def validate(self):
@@ -57,9 +43,7 @@ class ShopifySettings(Document):
 		if self.app_type not in ("Custom (OAuth)", "Public"):
 			return
 
-		connected_app: "ConnectedApp" = frappe.get_doc(
-			"Connected App", self.connected_app
-		)
+		connected_app: "ConnectedApp" = frappe.get_doc("Connected App", self.connected_app)
 
 		token_cache: Optional["TokenCache"] = connected_app.get_token_cache(
 			DEFAULT_TOKEN_USER,
@@ -84,7 +68,7 @@ class ShopifySettings(Document):
 			return ShopifySession.temp(*args)
 		return ShopifySession(*args)
 
-	def get_resources(self, resource: Type["ShopifyResource"], *args, **kwargs):
+	def get_resources(self, resource: type["ShopifyResource"], *args, **kwargs):
 		with self.get_shopify_session(temp=True):
 			resources = resource.find(*args, **kwargs)
 
@@ -92,11 +76,7 @@ class ShopifySettings(Document):
 			# this is a side-effect from the way the library works, since it
 			# doesn't process the "limit" keyword
 			if "limit" in kwargs:
-				return (
-					resources
-					if isinstance(resources, PaginatedCollection)
-					else [resources]
-				)
+				return resources if isinstance(resources, PaginatedCollection) else [resources]
 
 			if isinstance(resources, PaginatedCollection):
 				# Shopify's API limits responses to 50 per page by default;
@@ -135,14 +115,11 @@ class ShopifySettings(Document):
 		from shopify_integration.products import sync_items_from_shopify
 
 		frappe.enqueue(
-			method=sync_items_from_shopify,
-			queue="long",
-			is_async=True,
-			**{"shop_name": self.name}
+			method=sync_items_from_shopify, queue="long", is_async=True, **{"shop_name": self.name}
 		)
 
 	@frappe.whitelist()
-	def sync_payouts(self, start_date: str = str()):
+	def sync_payouts(self, start_date: str = ""):
 		"Pull and sync payouts from Shopify Payments transactions"
 		from shopify_integration.payouts import create_shopify_payouts
 
@@ -159,10 +136,7 @@ class ShopifySettings(Document):
 		if frappe.conf.developer_mode:
 			return
 
-		if (
-			self.app_type in ("Custom (OAuth)", "Public")
-			and not self.get_shopify_access_token()
-		):
+		if self.app_type in ("Custom (OAuth)", "Public") and not self.get_shopify_access_token():
 			return
 
 		if self.enable_shopify and not self.webhooks:
@@ -171,33 +145,26 @@ class ShopifySettings(Document):
 			self.unregister_webhooks()
 
 	def register_webhooks(self):
-		from shopify_integration.webhooks import (
-			get_webhook_url,
-			SHOPIFY_WEBHOOK_TOPIC_MAPPER,
-		)
+		from shopify_integration.webhooks import SHOPIFY_WEBHOOK_TOPIC_MAPPER, get_webhook_url
 
 		webhooks = []
 
 		try:
 			webhooks = self.get_webhooks()
 		except Exception as e:
-			make_shopify_log(
-				shop_name=self.name, status="Error", exception=e, rollback=True
-			)
+			make_shopify_log(shop_name=self.name, status="Error", exception=e, rollback=True)
 
 		if not webhooks:
 			for topic in SHOPIFY_WEBHOOK_TOPIC_MAPPER:
 				with self.get_shopify_session(temp=True):
-					webhooks.append(Webhook.create(
-						{"topic": topic, "address": get_webhook_url(), "format": "json"}
-					))
+					webhooks.append(
+						Webhook.create({"topic": topic, "address": get_webhook_url(), "format": "json"})
+					)
 
 		webhook: Webhook
 		for webhook in webhooks:
 			if webhook.is_valid():
-				self.append(
-					"webhooks", {"webhook_id": webhook.id, "method": webhook.topic}
-				)
+				self.append("webhooks", {"webhook_id": webhook.id, "method": webhook.topic})
 			else:
 				make_shopify_log(
 					shop_name=self.name,
@@ -218,18 +185,14 @@ class ShopifySettings(Document):
 			try:
 				existing_webhooks = self.get_webhooks(webhook.webhook_id)
 			except Exception as e:
-				make_shopify_log(
-					shop_name=self.name, status="Error", exception=e, rollback=True
-				)
+				make_shopify_log(shop_name=self.name, status="Error", exception=e, rollback=True)
 				continue
 
 			for existing_webhook in existing_webhooks:
 				try:
 					existing_webhook.destroy()
 				except Exception as e:
-					make_shopify_log(
-						shop_name=self.name, status="Error", exception=e, rollback=True
-					)
+					make_shopify_log(shop_name=self.name, status="Error", exception=e, rollback=True)
 				else:
 					deleted_webhooks.append(webhook)
 
