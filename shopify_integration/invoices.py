@@ -25,11 +25,9 @@ def prepare_sales_invoice(shop_name: str, order_id: str, log_id: str = ""):
 	"""
 	Webhook endpoint to process invoices for Shopify orders.
 
-	Args:
-	        shop_name (str): The name of the Shopify configuration for the store.
-	        order_id (Order): The Shopify order ID.
-	        log_id (str, optional): The ID of an existing Shopify Log.
-	                Defaults to an empty string.
+	:param shop_name: The name of the Shopify configuration for the store.
+	:param order_id: The Shopify order ID.
+	:param log_id (optional): The ID of an existing Shopify Log. Defaults to an empty string.
 	"""
 
 	from shopify_integration.orders import create_shopify_documents
@@ -66,15 +64,11 @@ def create_shopify_invoice(
 	Create a Sales Invoice document for a Shopify order. If the Shopify order is refunded
 	and a submitted Sales Invoice exists, make a sales return against the invoice.
 
-	Args:
-	        shop_name (str): The name of the Shopify configuration for the store.
-	        shopify_order (Order): The Shopify order data.
-	        sales_order (SalesOrder, optional): The reference Sales Order document for the
-	                Shopify order. Defaults to None.
-	        log_id (str, optional): The ID of an existing Shopify Log. Defaults to an empty string.
-
-	Returns:
-	        SalesInvoice: The created Sales Invoice document, if any, otherwise None.
+	:param shop_name: The name of the Shopify configuration for the store.
+	:param shopify_order: The Shopify order data.
+	:param sales_order (optional): The reference Sales Order document for the Shopify order. Defaults to None.
+	:param log_id (optional): The ID of an existing Shopify Log. Defaults to an empty string.
+	:return: The created Sales Invoice document, if any, otherwise None.
 	"""
 
 	if not shopify_order.attributes.get("financial_status") in [
@@ -105,13 +99,10 @@ def create_sales_invoice(shop_name: str, shopify_order: "Order", sales_order: "S
 	"""
 	Helper function to create a Sales Invoice document for a Shopify order.
 
-	Args:
-	        shop_name (str): The name of the Shopify configuration for the store.
-	        shopify_order (Order): The Shopify order data.
-	        sales_order (SalesOrder): The reference Sales Order document for the Shopify order.
-
-	Returns:
-	        SalesInvoice: The created or existing Sales Invoice document, if any, otherwise None.
+	:param shop_name: The name of the Shopify configuration for the store.
+	:param shopify_order: The Shopify order data.
+	:param sales_order: The reference Sales Order document for the Shopify order.
+	:return: The created or existing Sales Invoice document, if any, otherwise None.
 	"""
 
 	shopify_settings: "ShopifySettings" = frappe.get_doc("Shopify Settings", shop_name)
@@ -171,16 +162,12 @@ def create_sales_return(
 	"""
 	Create a Sales Invoice return for the given Shopify order.
 
-	Args:
-	        shop_name (str): The name of the Shopify configuration for the store.
-	        shopify_order_id (int): The Shopify order ID.
-	        shopify_financial_status (str): The financial status of the Shopify order.
-	                Should be one of: refunded, partially_refunded.
-	        sales_invoice (SalesInvoice): The Sales Invoice document.
-
-	Returns:
-	        SalesInvoice: The Sales Invoice return document.
-	                If no refunds are found, returns None.
+	:param shop_name: The name of the Shopify configuration for the store.
+	:param shopify_order_id: The Shopify order ID.
+	:param shopify_financial_status: The financial status of the Shopify order.
+	Should be one of: refunded, partially_refunded.
+	:param sales_invoice: The Sales Invoice document.
+	:return: The Sales Invoice return document. If no refunds are found, returns None.
 	"""
 
 	shopify_settings: "ShopifySettings" = frappe.get_doc("Shopify Settings", shop_name)

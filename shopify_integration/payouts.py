@@ -40,14 +40,12 @@ def create_shopify_payouts(shop_name: str, start_date: str = ""):
 	"""
 	Pull the latest payouts from Shopify and do the following:
 
-	- Create missing Sales Orders, Sales Invoices and Delivery Notes,
-	        if enabled in Shopify Settings
+	- Create missing Sales Orders, Sales Invoices and Delivery Notes, if enabled in Shopify Settings
 	- Create a Shopify Payout document with info on all transactions
 	- Update any invoices with fees accrued for each payout transaction
 
-	Args:
-	        shop_name (str): The name of the Shopify configuration for the store.
-	        start_date (str, optional): The date to start pulling payouts from.
+	:param shop_name: The name of the Shopify configuration for the store.
+	:param start_date (optional): The date to start pulling payouts from.
 	"""
 
 	shopify_settings: "ShopifySettings" = frappe.get_doc("Shopify Settings", shop_name)
@@ -104,12 +102,9 @@ def get_payouts(shopify_settings: "ShopifySettings", start_date: str = ""):
 	"""
 	Request Shopify API for the latest payouts
 
-	Args:
-	        shopify_settings (ShopifySettings): The Shopify configuration for the store.
-	        start_date (str, optional): The date to start pulling payouts from.
-
-	Returns:
-	        list of shopify.Payout: The list of Shopify payouts, if any.
+	:param shopify_settings: The Shopify configuration for the store.
+	:param start_date (optional): The date to start pulling payouts from.
+	:return: The list of Shopify payouts, if any.
 	"""
 
 	kwargs = {}
@@ -136,9 +131,8 @@ def create_missing_orders(shopify_settings: "ShopifySettings", shopify_order_ids
 	"""
 	Create missing Sales Orders, Sales Invoices and Delivery Notes, if enabled in Shopify Settings.
 
-	Args:
-	        shopify_settings (ShopifySettings): The Shopify configuration for the store.
-	        shopify_order_ids (list of str): The Shopify order IDs to create documents against.
+	:param shopify_settings: The Shopify configuration for the store.
+	:param shopify_order_ids: The Shopify order IDs to create documents against.
 	"""
 
 	for shopify_order_id in shopify_order_ids:
@@ -184,12 +178,9 @@ def _create_shopify_payout(shopify_settings: "ShopifySettings", payout: "Payouts
 	"""
 	Create a Shopify Payout document from Shopify's Payout information.
 
-	Args:
-	        shopify_settings (ShopifySettings): The Shopify configuration for the store.
-	        payout (Payouts): The Payout payload from Shopify.
-
-	Returns:
-	        ShopifyPayout: The created Shopify Payout document.
+	:param shopify_settings: The Shopify configuration for the store.
+	:param payout: The Payout payload from Shopify.
+	:return: The created Shopify Payout document.
 	"""
 
 	payout_doc: "ShopifyPayout" = frappe.new_doc("Shopify Payout")

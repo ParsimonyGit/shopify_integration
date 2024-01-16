@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 
 import frappe
 from frappe.utils import flt, getdate, nowdate

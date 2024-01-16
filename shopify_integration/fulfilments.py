@@ -26,11 +26,9 @@ def prepare_delivery_note(shop_name: str, order_id: str, log_id: str = ""):
 	"""
 	Webhook endpoint to process deliveries for Shopify orders.
 
-	Args:
-	        shop_name (str): The name of the Shopify configuration for the store.
-	        order_id (str): The Shopify order ID.
-	        log_id (str, optional): The ID of an existing Shopify Log.
-	                Defaults to an empty string.
+	:param shop_name: The name of the Shopify configuration for the store.
+	:param order_id: The Shopify order ID.
+	:param log_id (optional): The ID of an existing Shopify Log. Defaults to an empty string.
 	"""
 
 	frappe.set_user("Administrator")
@@ -53,17 +51,13 @@ def create_shopify_delivery(
 	"""
 	Create Delivery Note documents for each Shopify delivery.
 
-	Args:
-	        shop_name (str): The name of the Shopify configuration for the store.
-	        shopify_order (Order): The Shopify order data.
-	        sales_order (SalesOrder, optional): The reference Sales Order document for the
-	                Shopify order. Defaults to None.
-	        log_id (str, optional): The ID of an existing Shopify Log. Defaults to an empty string.
-	        rollback (bool, optional): If an error occurs while processing the order, all
-	                transactions will be rolled back, if this field is `True`. Defaults to False.
-
-	Returns:
-	        list: The list of created Delivery Note documents, if any, otherwise an empty list.
+	:param shop_name: The name of the Shopify configuration for the store.
+	:param shopify_order: The Shopify order data.
+	:param sales_order (optional): The reference Sales Order document for the Shopify order. Defaults to None.
+	:param log_id (optional): The ID of an existing Shopify Log. Defaults to an empty string.
+	:param rollback (optional): If an error occurs while processing the order, all transactions will be rolled
+	back, if this field is `True`. Defaults to False.
+	:returns: The list of created Delivery Note documents, if any, otherwise an empty list.
 	"""
 
 	if not shopify_order.attributes.get("fulfillments"):
@@ -94,13 +88,10 @@ def create_delivery_notes(
 	"""
 	Helper function to create Delivery Note documents for a Shopify order.
 
-	Args:
-	        shop_name (str): The name of the Shopify configuration for the store.
-	        shopify_order (Order): The Shopify order data.
-	        sales_order (SalesOrder): The reference Sales Order document for the Shopify order.
-
-	Returns:
-	        list: The list of created Delivery Note documents, if any, otherwise an empty list.
+	:param shop_name: The name of the Shopify configuration for the store.
+	:param shopify_order: The Shopify order data.
+	:param sales_order: The reference Sales Order document for the Shopify order.
+	:returns: The list of created Delivery Note documents, if any, otherwise an empty list.
 	"""
 
 	shopify_settings: "ShopifySettings" = frappe.get_doc("Shopify Settings", shop_name)

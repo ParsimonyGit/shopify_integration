@@ -1,5 +1,3 @@
-from typing import Union
-
 import frappe
 from frappe.utils import cstr
 from shopify import LineItem, Product, Variant

@@ -83,17 +83,13 @@ def get_shopify_document(
 	"""
 	Check if a Shopify order exists, including references from other apps.
 
-	Args:
-	        shop_name (str): The name of the Shopify configuration for the store.
-	        doctype (str): The doctype records to check against.
-	        order (Order, optional): The Shopify order data.
-	        order_id (str, optional): The Shopify order ID.
-
-	Returns:
-	        list(BaseDocument) | BaseDocument: The document object if a Shipstation
-	                order exists for the Shopify order, otherwise an empty list. If
-	                Delivery Notes need to be checked, then all found delivery documents
-	                are returned.
+	:param shop_name: The name of the Shopify configuration for the store.
+	:param doctype: The doctype records to check against.
+	:param order (optional): The Shopify order data.
+	:param order_id (optional): The Shopify order ID.
+	:return: The document object if a Shipstation order exists for the Shopify order,
+	otherwise an empty list. If Delivery Notes need to be checked, then all found delivery
+	documents are returned.
 	"""
 
 	shopify_docs = [] if doctype == "Delivery Note" else frappe._dict()
