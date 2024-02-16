@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 
 
 class ShopifySettings(Document):
-	api_version = "2023-04"
+	api_version = "2024-01"
 
 	@staticmethod
 	@frappe.whitelist()
