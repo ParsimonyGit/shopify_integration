@@ -122,8 +122,7 @@ def create_delivery_notes(
 			})
 
 			dn.flags.ignore_mandatory = True
-			dn_items = update_fulfillment_items(sales_order, fulfillment.attributes.get("line_items"))
-			dn.items = dn_items
+			dn = update_fulfillment_items(sales_order, fulfillment.attributes.get("line_items"), dn)
 			dn.save()
 			dn.submit()
 			frappe.db.commit()
@@ -135,15 +134,14 @@ def create_delivery_notes(
 def update_fulfillment_items(
 	so: List["SalesOrder"],
 	fulfillment_items: List["LineItem"],
+	dn: "DeliveryNote"
 ):
-	dn_items= []
 	for so_item in so.items:
 		# TODO: figure out a better way to add items without setting valuation rate to zero
 		for item in fulfillment_items:
 			if get_item_code(item) == so_item.item_code:
-				dn_item = frappe.new_doc("Delivery Note Item")
-				dn_item.update({
-					"allow_zero_valuation_rate": True, # is it necesarry now? #L151
+				dn.append("items",{
+					"allow_zero_valuation_rate": True,
 					"item_code": so_item.item_code,
 					"item_name": so_item.item_name,
 					"description": so_item.description,
@@ -151,10 +149,5 @@ def update_fulfillment_items(
 					"rate": so_item.rate,
 					"against_sales_order": so.name,
 					"shopify_order_item_id": item.attributes.get("id"),
-					"parenttype": "Delivery Note",
-					"parentfield": "items",
 				})
-				dn_items.append(dn_item)
-
-	return dn_items
-
+	return dn
