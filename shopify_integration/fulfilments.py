@@ -132,7 +132,7 @@ def create_delivery_notes(
 
 
 def update_fulfillment_items(
-	so: List["SalesOrder"],
+	so: "SalesOrder",
 	fulfillment_items: List["LineItem"],
 	dn: "DeliveryNote"
 ):
