@@ -139,6 +139,9 @@ def update_fulfillment_items(
 	for so_item in so.items:
 		# TODO: figure out a better way to add items without setting valuation rate to zero
 		for item in fulfillment_items:
+			if frappe.db.exists("Delivery Note Item",
+						{"against_sales_order": so_item.name, "shopify_order_item_id": item.attributes.get("id")}):
+				continue
 			if get_item_code(item) == so_item.item_code:
 				dn.append("items",{
 					"allow_zero_valuation_rate": True,
