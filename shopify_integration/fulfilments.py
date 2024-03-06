@@ -12,7 +12,6 @@ from shopify_integration.utils import get_shopify_document
 if TYPE_CHECKING:
 	from erpnext.selling.doctype.sales_order.sales_order import SalesOrder
 	from erpnext.stock.doctype.delivery_note.delivery_note import DeliveryNote
-	from erpnext.stock.doctype.delivery_note_item.delivery_note_item import DeliveryNoteItem
 	from shopify import Fulfillment, LineItem, Order
 	from shopify_integration.shopify_integration.doctype.shopify_settings.shopify_settings import ShopifySettings
 
@@ -110,7 +109,7 @@ def create_delivery_notes(
 			{"docstatus": 1, "shopify_fulfillment_id": fulfillment.id}, "name")
 
 		if not existing_delivery:
-			dn: "DeliveryNote" = make_delivery_note(sales_order.name)
+			dn: "DeliveryNote" = make_delivery_note(source_name=sales_order.name, skip_item_mapping=True)
 			dn.update({
 				"shopify_settings": shopify_settings.name,
 				"shopify_order_id": shopify_order.id,
@@ -122,9 +121,8 @@ def create_delivery_notes(
 				"naming_series": shopify_settings.delivery_note_series or "DN-Shopify-",
 			})
 
-			update_fulfillment_items(dn.items, fulfillment.attributes.get("line_items"))
-
 			dn.flags.ignore_mandatory = True
+			dn = update_fulfillment_items(sales_order, fulfillment.attributes.get("line_items"), dn)
 			dn.save()
 			dn.submit()
 			frappe.db.commit()
@@ -134,12 +132,22 @@ def create_delivery_notes(
 
 
 def update_fulfillment_items(
-	dn_items: List["DeliveryNoteItem"],
-	fulfillment_items: List["LineItem"]
+	so: "SalesOrder",
+	fulfillment_items: List["LineItem"],
+	dn: "DeliveryNote"
 ):
-	for dn_item in dn_items:
+	for so_item in so.items:
 		# TODO: figure out a better way to add items without setting valuation rate to zero
-		dn_item.allow_zero_valuation_rate = True
 		for item in fulfillment_items:
-			if get_item_code(item) == dn_item.item_code:
-				dn_item.qty = item.attributes.get("quantity")
+			if item.attributes.get("id") == so_item.shopify_order_item_id:
+				dn.append("items",{
+					"allow_zero_valuation_rate": True,
+					"item_code": so_item.item_code,
+					"item_name": so_item.item_name,
+					"description": so_item.description,
+					"qty": item.attributes.get("quantity"),
+					"rate": so_item.rate,
+					"against_sales_order": so.name,
+					"shopify_order_item_id": item.attributes.get("id"),
+				})
+	return dn
